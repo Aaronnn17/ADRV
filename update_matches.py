@@ -5,66 +5,52 @@ import requests
 API_KEY = os.environ.get('FOOTBALL_API_KEY')
 print(f"API Key presente: {bool(API_KEY)}")
 
-# URL específica de Fútbol (v3) para el Rayo Vallecano (team=728) y temporada actual (2026)
-url = "https://v3.football.api-sports.io/fixtures"
-
-querystring = {"team": "728", "season": "2026"}
-
-headers = {
-    'x-apisports-key': API_KEY
-}
+# Endpoint oficial de la v4 para la competición de LaLiga (PD) en 2026
+url = "https://api.football-data.org/v4/competitions/PD/matches"
+querystring = {"season": "2026"}
+headers = {'X-Auth-Token': API_KEY} if API_KEY else {}
 
 try:
-    response = requests.get(url, headers=headers, params=querystring)
+    response = requests.get(url, headers=headers, params=querystring, timeout=15)
     print(f"Código de respuesta HTTP: {response.status_code}")
     
     raw_data = response.json()
     
-    # Comprobamos si hay errores devueltos por la API
-    errors = raw_data.get("errors", {})
-    if errors:
-        print(f"La API ha devuelto un error: {errors}")
-        exit(1)
+    # Comprobamos si hay algún mensaje de error de la API
+    if "message" in raw_data:
+        print(f"Aviso de la API: {raw_data['message']}")
 
-    fixtures = raw_data.get("response", [])
-    print(f"Partidos encontrados en la API: {len(fixtures)}")
+    matches = raw_data.get("matches", [])
+    print(f"Total partidos en LaLiga encontrados: {len(matches)}")
     
     formatted_matches = []
-
-    for item in fixtures:
-        fixture = item.get("fixture", {})
-        teams = item.get("teams", {})
-        goals = item.get("goals", {})
-        league = item.get("league", {})
-
-        home_team = teams.get("home", {}).get("name", "Rayo Vallecano")
-        away_team = teams.get("away", {}).get("name", "Rival")
+    for match in matches:
+        home_team = match.get("homeTeam", {}).get("name", "")
+        away_team = match.get("awayTeam", {}).get("name", "")
         
-        home_logo = teams.get("home", {}).get("logo", "")
-        away_logo = teams.get("away", {}).get("logo", "")
-        
-        status_short = fixture.get("status", {}).get("short", "NS")
-        status = "FINISHED" if status_short in ["FT", "AET", "PEN"] else "UPCOMING"
-        
-        match_date = fixture.get("date", "Próximo partido")
-        competition = league.get("name", "LaLiga EA Sports")
-        round_name = league.get("round", "Estadio de Vallecas")
+        # Filtramos únicamente los partidos del Rayo Vallecano
+        if "Rayo" in home_team or "Rayo" in away_team:
+            score = match.get("score", {}).get("fullTime", {})
+            status_api = match.get("status", "SCHEDULED")
+            status = "FINISHED" if status_api == "FINISHED" else "UPCOMING"
+            
+            match_obj = {
+                "id": f"match_{match.get('id', '')}",
+                "homeTeam": home_team,
+                "awayTeam": away_team,
+                "homeScore": score.get("home"),
+                "awayScore": score.get("away"),
+                "status": status,
+                "dateText": match.get("utcDate", "Próximo partido"),
+                "competition": "LaLiga EA Sports",
+                "round": f"Jornada {match.get('matchday', '')}",
+                "homeLogoUrl": match.get("homeTeam", {}).get("crest", ""),
+                "awayLogoUrl": match.get("awayTeam", {}).get("crest", ""),
+                "matchUrl": "https://www.rayovallecano.es/partidos"
+            }
+            formatted_matches.append(match_obj)
 
-        match_obj = {
-            "id": f"match_{fixture.get('id', '')}",
-            "homeTeam": home_team,
-            "awayTeam": away_team,
-            "homeScore": goals.get("home"),
-            "awayScore": goals.get("away"),
-            "status": status,
-            "dateText": match_date,
-            "competition": competition,
-            "round": round_name,
-            "homeLogoUrl": home_logo,
-            "awayLogoUrl": away_logo,
-            "matchUrl": "https://www.rayovallecano.es/partidos"
-        }
-        formatted_matches.append(match_obj)
+    print(f"Partidos del Rayo Vallecano filtrados: {len(formatted_matches)}")
 
     final_output = {
         "temporada": "2026/2027",
@@ -75,8 +61,8 @@ try:
     with open("matches.json", "w", encoding="utf-8") as f:
         json.dump(final_output, f, indent=4, ensure_ascii=False)
         
-    print("¡matches.json actualizado correctamente con los partidos de la API!")
+    print("¡matches.json actualizado con éxito!")
 
 except Exception as e:
-    print(f"Error crítico al conectar con la API: {e}")
+    print(f"Error crítico: {e}")
     exit(1)
