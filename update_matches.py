@@ -7,28 +7,51 @@ print(f"API Key presente: {bool(API_KEY)}")
 
 headers = {'X-Auth-Token': API_KEY} if API_KEY else {}
 
-STADIUMS_MAP = {
-    "Barcelona": "Spotify Camp Nou",
-    "Atletico Madrid": "Cívitas Metropolitano",
-    "Real Madrid": "Estadio Santiago Bernabéu",
-    "Real Betis": "Benito Villamarín",
-    "Real Sociedad": "Reale Arena",
-    "Sevilla": "Ramón Sánchez-Pizjuán",
-    "Athletic Club": "San Mamés",
-    "Deportivo La Coruña": "Abanca-Riazor",
-    "Villarreal": "Estadio de la Cerámica",
-    "Celta Vigo": "Abanca-Balaídos",
-    "Alaves": "Mendizorrotza",
-    "Rayo Vallecano": "Estadio de Vallecas",
-    "Getafe": "Coliseum",
-    "Espanyol": "Stage Front Stadium",
-    "Osasuna": "El Sadar",
-    "Racing Santander": "Campos de Sport de El Sardinero",
-    "Elche": "Estadio Martínez Valero",
-    "Levante": "Ciutat de València",
-    "Valencia": "Camp de Mestalla",
-    "Malaga": "La Rosaleda"
-}
+def get_stadium(home_team_name):
+    name = home_team_name.lower()
+    
+    if "barcelona" in name:
+        return "Spotify Camp Nou"
+    elif "real madrid" in name:
+        return "Estadio Santiago Bernabéu"
+    elif "rayo vallecano" in name:
+        return "Estadio de Vallecas"
+    elif "atletico" in name or "atlético" in name:
+        return "Cívitas Metropolitano"
+    elif "betis" in name:
+        return "Benito Villamarín"
+    elif "real sociedad" in name:
+        return "Reale Arena"
+    elif "sevilla" in name:
+        return "Ramón Sánchez-Pizjuán"
+    elif "athletic" in name:
+        return "San Mamés"
+    elif "deportivo" in name:
+        return "Abanca-Riazor"
+    elif "villarreal" in name:
+        return "Estadio de la Cerámica"
+    elif "celta" in name:
+        return "Abanca-Balaídos"
+    elif "alaves" in name or "alavés" in name:
+        return "Mendizorrotza"
+    elif "getafe" in name:
+        return "Coliseum"
+    elif "espanyol" in name:
+        return "Stage Front Stadium"
+    elif "osasuna" in name:
+        return "El Sadar"
+    elif "racing" in name:
+        return "Campos de Sport de El Sardinero"
+    elif "elche" in name:
+        return "Estadio Martínez Valero"
+    elif "levante" in name:
+        return "Ciutat de València"
+    elif "valencia" in name:
+        return "Camp de Mestalla"
+    elif "malaga" in name or "málaga" in name:
+        return "La Rosaleda"
+    else:
+        return f"Estadio de {home_team_name}"
 
 team_url = "https://api.football-data.org/v4/teams/87"
 team_info = {}
@@ -52,8 +75,7 @@ try:
             home_team = match.get("homeTeam", {}).get("name", "")
             away_team = match.get("awayTeam", {}).get("name", "")
             
-            # Asignamos el estadio oficial mediante el diccionario, o uno por defecto si no estuviera listado
-            venue_name = STADIUMS_MAP.get(home_team, f"Estadio de {home_team}")
+            venue_name = get_stadium(home_team)
             
             score = match.get("score", {})
             full_time = score.get("fullTime", {})
