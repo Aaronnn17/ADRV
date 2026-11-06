@@ -29,9 +29,7 @@ try:
             home_team = match.get("homeTeam", {}).get("name", "")
             away_team = match.get("awayTeam", {}).get("name", "")
             
-            # Extraemos el estadio directamente del objeto de la API o del equipo local de forma segura
-            home_team_obj = match.get("homeTeam", {})
-            venue_name = match.get("venue") or home_team_obj.get("venue") or "Estadio por confirmar"
+            venue_name = match.get("venue")
             
             score = match.get("score", {})
             full_time = score.get("fullTime", {})
