@@ -13,6 +13,7 @@
             "name": "Emil Audero",
             "position": "Goalkeeper",
             "nationality": "Indonesia",
+            "countryCode": "ID",
             "shirtNumber": null
         },
         {
@@ -20,6 +21,7 @@
             "name": "Augusto Batalla",
             "position": "Goalkeeper",
             "nationality": "Argentina",
+            "countryCode": "AR",
             "shirtNumber": null
         },
         {
@@ -27,6 +29,7 @@
             "name": "Morro",
             "position": "Goalkeeper",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -34,6 +37,7 @@
             "name": "Dani Cárdenas",
             "position": "Goalkeeper",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -41,6 +45,7 @@
             "name": "Luiz Felipe",
             "position": "Defence",
             "nationality": "Italy",
+            "countryCode": "IT",
             "shirtNumber": null
         },
         {
@@ -48,6 +53,7 @@
             "name": "Marash Kumbulla",
             "position": "Defence",
             "nationality": "Italy",
+            "countryCode": "IT",
             "shirtNumber": null
         },
         {
@@ -55,6 +61,7 @@
             "name": "Florian Lejeune",
             "position": "Defence",
             "nationality": "France",
+            "countryCode": "FR",
             "shirtNumber": null
         },
         {
@@ -62,6 +69,7 @@
             "name": "Iván Balliu",
             "position": "Defence",
             "nationality": "Albania",
+            "countryCode": "AL",
             "shirtNumber": null
         },
         {
@@ -69,6 +77,7 @@
             "name": "Mujaid Sadick",
             "position": "Defence",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -76,6 +85,7 @@
             "name": "Pedrosa",
             "position": "Defence",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -83,6 +93,7 @@
             "name": "Andrei Rațiu",
             "position": "Defence",
             "nationality": "Romania",
+            "countryCode": "RO",
             "shirtNumber": null
         },
         {
@@ -90,6 +101,7 @@
             "name": "Jozhua Vertrouwd",
             "position": "Defence",
             "nationality": "Netherlands",
+            "countryCode": "NL",
             "shirtNumber": null
         },
         {
@@ -97,6 +109,7 @@
             "name": "Pelayo Fernández",
             "position": "Defence",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -104,6 +117,7 @@
             "name": "Óscar Valentín",
             "position": "Midfield",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -111,6 +125,7 @@
             "name": "Unai López",
             "position": "Midfield",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -118,6 +133,7 @@
             "name": "Pedro Díaz",
             "position": "Midfield",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -125,6 +141,7 @@
             "name": "Pathé Ciss",
             "position": "Midfield",
             "nationality": "Senegal",
+            "countryCode": "SN",
             "shirtNumber": null
         },
         {
@@ -132,6 +149,7 @@
             "name": "Randy Ntekja",
             "position": "Midfield",
             "nationality": "Angola",
+            "countryCode": "AO",
             "shirtNumber": null
         },
         {
@@ -139,6 +157,7 @@
             "name": "Gnangoro Bouare",
             "position": "Midfield",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -146,6 +165,7 @@
             "name": "Raúl de Tomás",
             "position": "Offence",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -153,6 +173,7 @@
             "name": "Álvaro García",
             "position": "Offence",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -160,6 +181,7 @@
             "name": "Isi Palazón",
             "position": "Offence",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -167,6 +189,7 @@
             "name": "Alexandre Alemão",
             "position": "Offence",
             "nationality": "Brazil",
+            "countryCode": "BR",
             "shirtNumber": null
         },
         {
@@ -174,6 +197,7 @@
             "name": "Sergio Camello",
             "position": "Offence",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -181,6 +205,7 @@
             "name": "Jorge de Frutos",
             "position": "Offence",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -188,6 +213,7 @@
             "name": "Fran Perez",
             "position": "Offence",
             "nationality": "Spain",
+            "countryCode": "ES",
             "shirtNumber": null
         },
         {
@@ -195,6 +221,7 @@
             "name": "Georgiy Tsitaishvili",
             "position": "Offence",
             "nationality": "Georgia",
+            "countryCode": "GE",
             "shirtNumber": null
         }
     ]
