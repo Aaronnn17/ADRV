@@ -10,8 +10,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": 2,
             "awayScore": 1,
-            "halfTimeHomeScore": 0,
-            "halfTimeAwayScore": 1,
             "status": "FINISHED",
             "statusApi": "FINISHED",
             "dateText": "2026-08-15T19:30:00Z",
@@ -20,8 +18,7 @@
             "homeLogoUrl": "https://crests.football-data.org/559.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Ricardo de Burgos",
-            "events": []
+            "referee": "Ricardo de Burgos"
         },
         {
             "id": "match_564638",
@@ -29,8 +26,6 @@
             "awayTeam": "Deportivo Alavés",
             "homeScore": 1,
             "awayScore": 1,
-            "halfTimeHomeScore": 0,
-            "halfTimeAwayScore": 0,
             "status": "FINISHED",
             "statusApi": "FINISHED",
             "dateText": "2026-08-20T19:00:00Z",
@@ -39,8 +34,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/263.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "José Munuera Montero",
-            "events": []
+            "referee": "José Munuera Montero"
         },
         {
             "id": "match_564650",
@@ -48,8 +42,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": 5,
             "awayScore": 2,
-            "halfTimeHomeScore": 2,
-            "halfTimeAwayScore": 1,
             "status": "FINISHED",
             "statusApi": "FINISHED",
             "dateText": "2026-08-31T19:30:00Z",
@@ -58,8 +50,7 @@
             "homeLogoUrl": "https://crests.football-data.org/81.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564660",
@@ -67,8 +58,6 @@
             "awayTeam": "Real Racing Club de Santander",
             "homeScore": 3,
             "awayScore": 2,
-            "halfTimeHomeScore": 2,
-            "halfTimeAwayScore": 2,
             "status": "FINISHED",
             "statusApi": "FINISHED",
             "dateText": "2026-09-05T16:30:00Z",
@@ -77,8 +66,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/5335.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Alejandro Quintero González",
-            "events": []
+            "referee": "Alejandro Quintero González"
         },
         {
             "id": "match_564677",
@@ -86,8 +74,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": 4,
             "awayScore": 1,
-            "halfTimeHomeScore": 3,
-            "halfTimeAwayScore": 0,
             "status": "FINISHED",
             "statusApi": "FINISHED",
             "dateText": "2026-09-12T19:00:00Z",
@@ -96,8 +82,7 @@
             "homeLogoUrl": "https://crests.football-data.org/86.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Víctor García Verdura",
-            "events": []
+            "referee": "Víctor García Verdura"
         },
         {
             "id": "match_564678",
@@ -105,8 +90,6 @@
             "awayTeam": "RCD Espanyol de Barcelona",
             "homeScore": 2,
             "awayScore": 1,
-            "halfTimeHomeScore": 2,
-            "halfTimeAwayScore": 0,
             "status": "FINISHED",
             "statusApi": "FINISHED",
             "dateText": "2026-09-15T17:00:00Z",
@@ -115,8 +98,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/80.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Isidro Díaz de Mera",
-            "events": []
+            "referee": "Isidro Díaz de Mera"
         },
         {
             "id": "match_564693",
@@ -124,8 +106,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": 1,
             "awayScore": 1,
-            "halfTimeHomeScore": 1,
-            "halfTimeAwayScore": 0,
             "status": "FINISHED",
             "statusApi": "FINISHED",
             "dateText": "2026-09-19T12:00:00Z",
@@ -134,8 +114,7 @@
             "homeLogoUrl": "https://crests.football-data.org/79.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Manuel Orellana Cid",
-            "events": []
+            "referee": "Manuel Orellana Cid"
         },
         {
             "id": "match_564717",
@@ -143,8 +122,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": 1,
             "awayScore": 1,
-            "halfTimeHomeScore": 0,
-            "halfTimeAwayScore": 1,
             "status": "FINISHED",
             "statusApi": "FINISHED",
             "dateText": "2026-10-19T19:00:00Z",
@@ -153,8 +130,7 @@
             "homeLogoUrl": "https://crests.football-data.org/82.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Jon González Esteban",
-            "events": []
+            "referee": "Jon González Esteban"
         },
         {
             "id": "match_564718",
@@ -162,8 +138,6 @@
             "awayTeam": "Elche CF",
             "homeScore": 0,
             "awayScore": 3,
-            "halfTimeHomeScore": 0,
-            "halfTimeAwayScore": 2,
             "status": "FINISHED",
             "statusApi": "FINISHED",
             "dateText": "2026-10-24T12:00:00Z",
@@ -172,8 +146,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/285.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Miguel Sesma Espinosa",
-            "events": []
+            "referee": "Miguel Sesma Espinosa"
         },
         {
             "id": "match_564735",
@@ -181,8 +154,6 @@
             "awayTeam": "RC Celta de Vigo",
             "homeScore": 3,
             "awayScore": 0,
-            "halfTimeHomeScore": 1,
-            "halfTimeAwayScore": 0,
             "status": "FINISHED",
             "statusApi": "FINISHED",
             "dateText": "2026-10-31T15:15:00Z",
@@ -191,8 +162,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/558.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Manuel Orellana Cid",
-            "events": []
+            "referee": "Manuel Orellana Cid"
         },
         {
             "id": "match_564743",
@@ -200,8 +170,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "TIMED",
             "dateText": "2026-11-08T15:15:00Z",
@@ -210,8 +178,7 @@
             "homeLogoUrl": "https://crests.football-data.org/92.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564751",
@@ -219,8 +186,6 @@
             "awayTeam": "Valencia CF",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "TIMED",
             "dateText": "2026-11-21T15:15:00Z",
@@ -229,8 +194,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/95.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564760",
@@ -238,8 +202,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2026-11-29T00:00:00Z",
@@ -248,8 +210,7 @@
             "homeLogoUrl": "https://crests.football-data.org/90.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564777",
@@ -257,8 +218,6 @@
             "awayTeam": "Levante UD",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2026-12-06T00:00:00Z",
@@ -267,8 +226,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/88.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564698",
@@ -276,8 +234,6 @@
             "awayTeam": "Athletic Club",
             "homeScore": 0,
             "awayScore": 0,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "CANCELLED",
             "dateText": "2026-12-09T19:00:00Z",
@@ -286,8 +242,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/77.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "José Sánchez Martínez",
-            "events": []
+            "referee": "José Sánchez Martínez"
         },
         {
             "id": "match_564784",
@@ -295,8 +250,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2026-12-13T00:00:00Z",
@@ -305,8 +258,7 @@
             "homeLogoUrl": "https://crests.football-data.org/94.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564795",
@@ -314,8 +266,6 @@
             "awayTeam": "Málaga CF",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2026-12-20T00:00:00Z",
@@ -324,8 +274,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/84.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564807",
@@ -333,8 +282,6 @@
             "awayTeam": "Club Atlético de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-01-03T00:00:00Z",
@@ -343,8 +290,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/78.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564812",
@@ -352,8 +298,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-01-10T00:00:00Z",
@@ -362,8 +306,7 @@
             "homeLogoUrl": "https://crests.football-data.org/560.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564825",
@@ -371,8 +314,6 @@
             "awayTeam": "Sevilla FC",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-01-17T00:00:00Z",
@@ -381,8 +322,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/559.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564831",
@@ -390,8 +330,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-01-24T00:00:00Z",
@@ -400,8 +338,7 @@
             "homeLogoUrl": "https://crests.football-data.org/285.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564839",
@@ -409,8 +346,6 @@
             "awayTeam": "Real Madrid CF",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-01-31T00:00:00Z",
@@ -419,8 +354,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/86.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564852",
@@ -428,8 +362,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-02-07T00:00:00Z",
@@ -438,8 +370,7 @@
             "homeLogoUrl": "https://crests.football-data.org/80.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564860",
@@ -447,8 +378,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-02-14T00:00:00Z",
@@ -457,8 +386,7 @@
             "homeLogoUrl": "https://crests.football-data.org/558.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564877",
@@ -466,8 +394,6 @@
             "awayTeam": "Getafe CF",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-02-21T00:00:00Z",
@@ -476,8 +402,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/82.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564885",
@@ -485,8 +410,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-02-28T00:00:00Z",
@@ -495,8 +418,7 @@
             "homeLogoUrl": "https://crests.football-data.org/5335.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564891",
@@ -504,8 +426,6 @@
             "awayTeam": "CA Osasuna",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-03-07T00:00:00Z",
@@ -514,8 +434,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/79.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564904",
@@ -523,8 +442,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-03-14T00:00:00Z",
@@ -533,8 +450,7 @@
             "homeLogoUrl": "https://crests.football-data.org/84.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564912",
@@ -542,8 +458,6 @@
             "awayTeam": "FC Barcelona",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-03-21T00:00:00Z",
@@ -552,8 +466,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/81.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564918",
@@ -561,8 +474,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-04-04T00:00:00Z",
@@ -571,8 +482,7 @@
             "homeLogoUrl": "https://crests.football-data.org/88.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564928",
@@ -580,8 +490,6 @@
             "awayTeam": "Real Sociedad de Fútbol",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-04-11T00:00:00Z",
@@ -590,8 +498,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/92.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564945",
@@ -599,8 +506,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-04-18T00:00:00Z",
@@ -609,8 +514,7 @@
             "homeLogoUrl": "https://crests.football-data.org/263.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564949",
@@ -618,8 +522,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-04-21T00:00:00Z",
@@ -628,8 +530,7 @@
             "homeLogoUrl": "https://crests.football-data.org/95.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564962",
@@ -637,8 +538,6 @@
             "awayTeam": "Villarreal CF",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-05-02T00:00:00Z",
@@ -647,8 +546,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/94.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564973",
@@ -656,8 +554,6 @@
             "awayTeam": "RC Deportivo La Coruña",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-05-09T00:00:00Z",
@@ -666,8 +562,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/560.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564978",
@@ -675,8 +570,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-05-16T00:00:00Z",
@@ -685,8 +578,7 @@
             "homeLogoUrl": "https://crests.football-data.org/78.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_564988",
@@ -694,8 +586,6 @@
             "awayTeam": "Real Betis Balompié",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-05-23T00:00:00Z",
@@ -704,8 +594,7 @@
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/90.png",
             "venue": "Estadio del Rayo Vallecano",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         },
         {
             "id": "match_565004",
@@ -713,8 +602,6 @@
             "awayTeam": "Rayo Vallecano de Madrid",
             "homeScore": null,
             "awayScore": null,
-            "halfTimeHomeScore": null,
-            "halfTimeAwayScore": null,
             "status": "UPCOMING",
             "statusApi": "SCHEDULED",
             "dateText": "2027-05-30T00:00:00Z",
@@ -723,8 +610,7 @@
             "homeLogoUrl": "https://crests.football-data.org/77.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Estadio Visitante",
-            "referee": "Por designar",
-            "events": []
+            "referee": "Por designar"
         }
     ]
 }
