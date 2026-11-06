@@ -1,5 +1,9 @@
 package com.example.adrv.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -50,7 +54,7 @@ fun EquipoScreen() {
             .background(MaterialTheme.colorScheme.background)
     ) {
         // ----------------------------------------------------
-        // PESTAÑAS SUPERIORES ESTILIZADAS (TIPO CÁPSULA)
+        // PESTAÑAS SUPERIORES CON TRANSICIÓN FLUIDA Y SUAVE
         // ----------------------------------------------------
         Box(
             modifier = Modifier
@@ -60,32 +64,55 @@ fun EquipoScreen() {
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(50.dp)
                 )
-                .padding(4.dp) // Margen interior para que la pastilla respire
+                .padding(4.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 tabs.forEachIndexed { index, title ->
                     val selected = selectedTabIndex == index
+
+                    // Transición fluida de color para el fondo
+                    val backgroundColor by animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "tabBg"
+                    )
+
+                    // Transición fluida de color para el texto
+                    val textColor by animateColorAsState(
+                        targetValue = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                        label = "tabText"
+                    )
+
                     Box(
                         modifier = Modifier
-                            .weight(1f) // Reparte el ancho de forma equitativa entre las 3 pestañas
-                            .height(38.dp)
-                            .clip(RoundedCornerShape(50.dp))
-                            .background(
-                                if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
+                            .weight(1f)
+                            .animateContentSize(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                )
                             )
-                            .clickable { selectedTabIndex = index },
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(backgroundColor)
+                            .clickable { selectedTabIndex = index }
+                            .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = title,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = textColor,
                             fontSize = 13.sp,
                             maxLines = 1,
-                            softWrap = false, // Evita que "Clasificación" se parta en dos líneas
+                            softWrap = false,
                             textAlign = TextAlign.Center
                         )
                     }
