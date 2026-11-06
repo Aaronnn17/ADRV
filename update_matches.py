@@ -7,8 +7,8 @@ print(f"API Key presente: {bool(API_KEY)}")
 
 headers = {'X-Auth-Token': API_KEY} if API_KEY else {}
 
-# 1. Obtener la información del club y la plantilla (ID del Rayo Vallecano = 74)
-team_url = "https://api.football-data.org/v4/teams/74"
+# 1. Obtener la información del club y la plantilla (ID del Rayo Vallecano = 87)
+team_url = "https://api.football-data.org/v4/teams/87"
 team_info = {}
 
 try:
@@ -24,8 +24,7 @@ except Exception as e:
     print(f"Error en la petición de info del club: {e}")
 
 # 2. Obtener el calendario de partidos (Matches)
-# Filtramos por el equipo (74) para asegurar que solo traemos sus partidos
-matches_url = "https://api.football-data.org/v4/teams/74/matches"
+matches_url = "https://api.football-data.org/v4/teams/87/matches"
 querystring = {"season": "2026"}
 formatted_matches = []
 
@@ -46,7 +45,6 @@ try:
             
             status = "FINISHED" if status_api == "FINISHED" else "UPCOMING"
             
-            # Obtener datos de la competición de este partido específico
             competition_info = match.get("competition", {})
             competition_name = competition_info.get("name", "LaLiga EA Sports")
             
@@ -63,7 +61,6 @@ try:
                 "homeLogoUrl": match.get("homeTeam", {}).get("crest", ""),
                 "awayLogoUrl": match.get("awayTeam", {}).get("crest", ""),
                 "matchUrl": "https://www.rayovallecano.es/partidos",
-                # Añadimos más datos extraídos de la API si están disponibles
                 "venue": team_info.get("venue", "Estadio de Vallecas") if "Rayo" in home_team else "" 
             }
             formatted_matches.append(match_obj)
