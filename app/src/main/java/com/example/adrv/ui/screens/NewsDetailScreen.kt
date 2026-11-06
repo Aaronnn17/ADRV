@@ -1,193 +1,125 @@
 package com.example.adrv.ui.screens
 
+import android.text.Html
+import android.widget.TextView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.OpenInBrowser
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.adrv.data.RayoScraper
-import com.example.adrv.model.NewsItem
-import com.example.adrv.ui.components.RayoImage
-import com.example.adrv.ui.theme.RayoRed
+import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.AsyncImage
+import com.example.adrv.model.News
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsDetailScreen(
-    newsItem: NewsItem,
-    onBack: () -> Unit
+    article: News
 ) {
-    val uriHandler = LocalUriHandler.current
-    var articleContent by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+    val scrollState = rememberScrollState()
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface.toArgb()
 
-    LaunchedEffect(newsItem.articleUrl) {
-        if (newsItem.articleUrl != null) {
-            articleContent = RayoScraper.fetchArticleContent(newsItem.articleUrl)
-        } else {
-            articleContent = newsItem.summary
-        }
-        isLoading = false
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Noticia Rayo",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = RayoRed
-                        )
-                    }
-                },
-                actions = {
-                    newsItem.articleUrl?.let { url ->
-                        IconButton(onClick = {
-                            try { uriHandler.openUri(url) } catch (e: Exception) { e.printStackTrace() }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.OpenInBrowser,
-                                contentDescription = "Abrir en navegador",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-        ) {
-            // Article Header Tag
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(16.dp)
+    ) {
+        // Categoría
+        if (article.categories.isNotEmpty()) {
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(50.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(RayoRed)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = newsItem.sourceName,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = newsItem.date,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = article.categories.first().uppercase(),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
-            Spacer(modifier = Modifier.height(10.dp))
+        // Título principal
+        Text(
+            text = article.title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
 
-            // Title
-            Text(
-                text = newsItem.title,
-                fontWeight = FontWeight.Black,
-                fontSize = 20.sp,
-                lineHeight = 26.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+        Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(14.dp))
+        // Fecha elegante
+        Text(
+            text = formatNewsDate(article.published),
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.primary
+        )
 
-            // Image
-            Card(
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Imagen destacada
+        if (!article.image.isNullOrEmpty()) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(210.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.DarkGray)
             ) {
-                RayoImage(
-                    url = newsItem.imageUrl,
-                    contentDescription = newsItem.title,
-                    modifier = Modifier.fillMaxSize(),
-                    fallbackEmoji = "⚡"
+                AsyncImage(
+                    model = article.image,
+                    contentDescription = article.title,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Content Body
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = RayoRed)
-                }
-            } else {
-                Text(
-                    text = articleContent ?: newsItem.summary,
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
+            Spacer(modifier = Modifier.height(20.dp))
         }
+
+        // Cuerpo de la noticia con espaciado y formato mejorado
+        if (!article.content.isNullOrEmpty()) {
+            AndroidView(
+                modifier = Modifier.fillMaxWidth(),
+                factory = { context ->
+                    TextView(context).apply {
+                        textSize = 16f
+                        setTextColor(onSurfaceColor)
+                        // Aumentamos el interlineado para una lectura mucho más cómoda y fluida
+                        setLineSpacing(16f, 1.35f)
+                    }
+                },
+                update = { textView ->
+                    // Preprocesamos el HTML para asegurar que los párrafos <p> tengan espacio real entre ellos
+                    val formattedHtml = article.content
+                        .replace("</p>", "</p><br>") // Añade separación visual entre párrafos
+                        .replace("<br>", "<br><br>")
+
+                    textView.text = Html.fromHtml(
+                        formattedHtml,
+                        Html.FROM_HTML_MODE_COMPACT or Html.FROM_HTML_SEPARATOR_LINE_BREAK_PARAGRAPH
+                    )
+                }
+            )
+        } else if (!article.summary.isNullOrEmpty()) {
+            Text(
+                text = article.summary,
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 22.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }

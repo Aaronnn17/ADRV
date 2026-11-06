@@ -1,320 +1,183 @@
 package com.example.adrv.ui.screens
 
+import androidx.activity.compose.BackHandler // <--- 1. Importa el BackHandler de Compose
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.adrv.data.RayoScraper
-import com.example.adrv.data.SampleData
-import com.example.adrv.model.NewsItem
-import com.example.adrv.ui.components.RayoImage
-import com.example.adrv.ui.theme.RayoRed
+import coil.compose.AsyncImage
+import com.example.adrv.data.RayoRepository
+import com.example.adrv.model.News
 import kotlinx.coroutines.launch
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
-fun NoticiasScreen(
-    modifier: Modifier = Modifier
-) {
-    var newsList by remember { mutableStateOf(SampleData.newsList) }
-    var isLoading by remember { mutableStateOf(false) }
-    var selectedNewsForDetail by remember { mutableStateOf<NewsItem?>(null) }
+fun NoticiasScreen() {
+    var newsList by remember { mutableStateOf<List<News>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var selectedArticle by remember { mutableStateOf<News?>(null) }
     val scope = rememberCoroutineScope()
 
-    // Fetch live news from Rayo Vallecano official site using Jsoup
-    fun loadNews() {
+    // 2. Interceptamos el botón atrás nativo si estamos viendo una noticia en detalle
+    BackHandler(enabled = selectedArticle != null) {
+        selectedArticle = null
+    }
+
+    LaunchedEffect(Unit) {
         scope.launch {
-            isLoading = true
-            val fetched = RayoScraper.fetchNews()
-            if (fetched.isNotEmpty()) {
-                newsList = fetched
+            val response = RayoRepository.fetchNewsData()
+            if (response != null) {
+                newsList = response.news
             }
             isLoading = false
         }
     }
 
-    LaunchedEffect(Unit) {
-        loadNews()
-    }
-
-    // In-App Article Detail Reader
-    val currentDetail = selectedNewsForDetail
-    if (currentDetail != null) {
+    if (selectedArticle != null) {
         NewsDetailScreen(
-            newsItem = currentDetail,
-            onBack = { selectedNewsForDetail = null }
+            article = selectedArticle!!
         )
     } else {
-        val featuredNews = newsList.firstOrNull { it.isFeatured } ?: newsList.firstOrNull()
-        val otherNews = newsList.filter { it.id != featuredNews?.id }
-
-        LazyColumn(
-            modifier = modifier
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Minimalist Header Bar
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Actualidad Franjirroja",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 20.sp,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            text = "Web Oficial · rayovallecano.es",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = RayoRed,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-
-                        IconButton(onClick = { loadNews() }) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Actualizar Noticias",
-                                tint = RayoRed
-                            )
-                        }
-                    }
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-            }
-
-            // Featured Hero News Card
-            if (featuredNews != null) {
-                item {
-                    NewsCardFeatured(
-                        newsItem = featuredNews,
-                        onClick = { selectedNewsForDetail = featuredNews }
+            } else if (newsList.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "No hay noticias disponibles en este momento",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp
                     )
                 }
-            }
-
-            // Section Title: Últimas publicaciones
-            item {
-                Spacer(modifier = Modifier.height(14.dp))
-                Text(
-                    text = "Últimas publicaciones",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                )
-            }
-
-            // Minimalist List Items
-            items(otherNews) { news ->
-                NewsCardRow(
-                    newsItem = news,
-                    onClick = { selectedNewsForDetail = news }
-                )
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(newsList) { article ->
+                        NewsCard(
+                            article = article,
+                            onClick = { selectedArticle = article }
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun NewsCardFeatured(
-    newsItem: NewsItem,
-    onClick: () -> Unit
-) {
+fun NewsCard(article: News, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            .clickable { onClick() }, // <--- Hacemos la tarjeta interactiva
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(190.dp)
-                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-            ) {
-                RayoImage(
-                    url = newsItem.imageUrl,
-                    contentDescription = newsItem.title,
-                    modifier = Modifier.fillMaxSize(),
-                    fallbackEmoji = "⚡"
-                )
-
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Imagen destacada
+            if (!article.image.isNullOrEmpty()) {
                 Box(
                     modifier = Modifier
-                        .padding(12.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(RayoRed)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                        .align(Alignment.TopStart)
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.DarkGray)
+                ) {
+                    AsyncImage(
+                        model = article.image,
+                        contentDescription = article.title,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Categoría
+            if (article.categories.isNotEmpty()) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(50.dp)
                 ) {
                     Text(
-                        text = "DESTACADO",
+                        text = article.categories.first().uppercase(),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = newsItem.sourceName,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = RayoRed
-                    )
-                    Text(
-                        text = newsItem.date,
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            // Título
+            Text(
+                text = article.title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2
+            )
 
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = newsItem.title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+            Spacer(modifier = Modifier.height(6.dp))
 
-                Spacer(modifier = Modifier.height(6.dp))
+            // Resumen
+            if (!article.summary.isNullOrEmpty()) {
                 Text(
-                    text = newsItem.summary,
+                    text = article.summary,
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
+                    maxLines = 3
                 )
+                Spacer(modifier = Modifier.height(8.dp))
             }
+
+            // Fecha elegante y limpia en castellano
+            Text(
+                text = formatNewsDate(article.published),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
 
-@Composable
-fun NewsCardRow(
-    newsItem: NewsItem,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(86.dp, 66.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            ) {
-                RayoImage(
-                    url = newsItem.imageUrl,
-                    contentDescription = newsItem.title,
-                    modifier = Modifier.fillMaxSize(),
-                    fallbackEmoji = "⚡"
-                )
-            }
+// FUNCIÓN HELPER PARA FORMATEAR FECHAS
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = newsItem.sourceName,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = RayoRed
-                    )
-                    Text(
-                        text = newsItem.date,
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = newsItem.title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
+fun formatNewsDate(dateStr: String): String {
+    return try {
+        // Analiza el formato del RSS: "Sat, 31 Oct 2026 21:30:00 +0000"
+        val parsedDate = java.time.ZonedDateTime.parse(dateStr, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME)
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", java.util.Locale("es", "ES"))
+        parsedDate.format(formatter)
+    } catch (e: Exception) {
+        // Si hay algún fallo, devuelve los primeros caracteres limpios
+        dateStr.take(16)
     }
 }

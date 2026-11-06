@@ -14,23 +14,29 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,318 +53,158 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.example.adrv.data.RayoRepository
 import com.example.adrv.data.RayoScraper
 import com.example.adrv.data.SampleData
 import com.example.adrv.model.Match
 import com.example.adrv.model.MatchEvent
 import com.example.adrv.model.MatchStatus
+import com.example.adrv.model.RayoData
 import com.example.adrv.ui.components.RayoFranjaBackground
 import com.example.adrv.ui.components.RayoHeader
 import com.example.adrv.ui.theme.GoldAccent
 import com.example.adrv.ui.theme.RayoRed
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
-fun HoyScreen(
-    modifier: Modifier = Modifier
-) {
-    var match by remember { mutableStateOf(SampleData.currentMatch) }
-    var selectedSubTab by remember { mutableIntStateOf(0) }
-    val scope = rememberCoroutineScope()
-    val subTabs = listOf("Directo", "Resumen", "Estadísticas", "Jornada")
+fun HoyScreen() {
+    var rayoData by remember { mutableStateOf<RayoData?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var showNotificationsDialog by remember { mutableStateOf(false) }
 
-    fun refreshMatchData() {
-        scope.launch {
-            val matches = RayoScraper.fetchMatches()
-            if (matches.isNotEmpty()) {
-                match = matches.first()
-            }
-        }
-    }
+    // Acceso a preferencias locales para recordar qué hemos visto ya
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("RayoAlerts", Context.MODE_PRIVATE) }
+
+    // Lista dinámica de novedades
+    var dynamicNotifications by remember { mutableStateOf<List<String>>(emptyList()) }
+    val unreadCount = dynamicNotifications.size
+
+    val today = LocalDate.now(ZoneId.of("Europe/Madrid"))
 
     LaunchedEffect(Unit) {
-        refreshMatchData()
+        rayoData = RayoRepository.fetchRayoData()
+        isLoading = false
     }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        item {
-            RayoHeader()
+    // Calculamos el próximo partido
+    val nextMatch = remember(rayoData) {
+        rayoData?.partidos?.firstOrNull { match ->
+            try {
+                val matchDate = ZonedDateTime.parse(match.dateText)
+                    .withZoneSameInstant(ZoneId.of("Europe/Madrid"))
+                    .toLocalDate()
+                !matchDate.isBefore(today)
+            } catch (e: Exception) {
+                false
+            }
+        } ?: rayoData?.partidos?.lastOrNull()
+    }
+
+    // Efecto para detectar cambios reales cuando llegan los datos
+    LaunchedEffect(rayoData) {
+        if (rayoData != null) {
+            val newAlerts = mutableListOf<String>()
+
+            // 1. Detectar cambios en el próximo partido (ej. fecha/hora confirmada)
+            nextMatch?.let { match ->
+                val savedMatchDate = sharedPrefs.getString("last_match_date_${match.id}", "")
+                // Si la fecha ha cambiado respecto a la guardada y no es un valor por defecto
+                if (savedMatchDate != "" && savedMatchDate != match.dateText) {
+                    newAlerts.add("Horario actualizado: ${match.homeTeam} vs ${match.awayTeam}.")
+                } else if (savedMatchDate == "") {
+                    // Si es un partido nuevo que la app no había registrado
+                    newAlerts.add("Nuevo partido en agenda: Jornada disponible.")
+                }
+            }
+
+            // 2. Detectar noticias nuevas (suponiendo que rayoData tenga un listado de noticias)
+            /*
+            val latestNews = rayoData?.noticias?.firstOrNull()
+            if (latestNews != null) {
+                val savedNewsId = sharedPrefs.getString("last_news_id", "")
+                if (savedNewsId != latestNews.id) {
+                    newAlerts.add("Nueva noticia: ${latestNews.titulo}")
+                }
+            }
+            */
+
+            dynamicNotifications = newAlerts
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            RayoHeader(
+                onProfileClick = { },
+                onNotificationClick = {
+                    if (unreadCount > 0) showNotificationsDialog = true
+                },
+                unreadCount = unreadCount
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            } else if (nextMatch != null) {
+                NextMatchCard(match = nextMatch)
+            } else {
+                Text("No hay datos de partidos disponibles", color = Color.Gray)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Minimalist Match Card Banner (styled like image 1 & 2)
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    RayoFranjaBackground(
-                        modifier = Modifier.matchParentSize(),
-                        franjaColor = RayoRed.copy(alpha = 0.12f),
-                        franjaWidthRatio = 0.32f
-                    )
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Competition Badge
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(RayoRed)
-                                .padding(horizontal = 12.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = match.competition.uppercase(),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                letterSpacing = 1.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Match Score Row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Home Team (Rayo Vallecano)
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(54.dp)
-                                        .clip(CircleShape)
-                                        .background(RayoRed),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(text = match.homeLogoEmoji, fontSize = 26.sp)
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = match.homeTeam,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            // Score / Status Box
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = match.dateText,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = if (match.homeScore != null) "${match.homeScore} - ${match.awayScore}" else "VS",
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(
-                                            when (match.status) {
-                                                MatchStatus.LIVE -> RayoRed
-                                                MatchStatus.FINISHED -> Color(0xFF1E293B)
-                                                MatchStatus.UPCOMING -> RayoRed.copy(alpha = 0.2f)
-                                            }
-                                        )
-                                        .padding(horizontal = 10.dp, vertical = 3.dp)
-                                ) {
-                                    Text(
-                                        text = when (match.status) {
-                                            MatchStatus.LIVE -> "● EN DIRECTO"
-                                            MatchStatus.FINISHED -> "Finalizado"
-                                            MatchStatus.UPCOMING -> "Próximo"
-                                        },
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-
-                            // Away Team
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(54.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF2563EB)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(text = match.awayLogoEmoji, fontSize = 26.sp)
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = match.awayTeam,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = match.round,
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
-        // Sleek Sub-Tabs (Directo, Resumen, Estadísticas, Jornada)
-        item {
-            TabRow(
-                selectedTabIndex = selectedSubTab,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = RayoRed,
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        Modifier.tabIndicatorOffset(tabPositions[selectedSubTab]),
-                        color = RayoRed
-                    )
-                }
-            ) {
-                subTabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedSubTab == index,
-                        onClick = { selectedSubTab = index },
-                        text = {
-                            Text(
-                                text = title,
-                                fontSize = 13.sp,
-                                fontWeight = if (selectedSubTab == index) FontWeight.Bold else FontWeight.Medium,
-                                color = if (selectedSubTab == index) RayoRed else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    )
-                }
-            }
-        }
-
-        // Sub tab contents
-        when (selectedSubTab) {
-            0 -> {
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = "⚡ 🥇 👏", fontSize = 22.sp)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Isi Palazón, MVP del Partido",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "1 Gol, 1 Asistencia · Rayo Vallecano 2-0 Real Sociedad",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+        if (showNotificationsDialog) {
+            AlertDialog(
+                onDismissRequest = { showNotificationsDialog = false },
+                title = {
+                    Text(text = "🔔 Novedades ADRV", fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        dynamicNotifications.forEach { notification ->
+                            Text(text = "• $notification")
                         }
                     }
-                }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showNotificationsDialog = false
 
-                item {
-                    Text(
-                        text = "Eventos destacados",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                    )
-                }
-
-                items(match.events) { event ->
-                    MatchEventRow(event = event)
-                }
-            }
-            1 -> {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Resumen del partido disponible en la web oficial rayovallecano.es",
-                            textAlign = TextAlign.Center,
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        // Guardamos el estado actual para no volver a avisar de lo mismo
+                        sharedPrefs.edit().apply {
+                            nextMatch?.let { putString("last_match_date_${it.id}", it.dateText) }
+                            // latestNews?.let { putString("last_news_id", it.id) }
+                            apply()
+                        }
+                        // Limpiamos la campana
+                        dynamicNotifications = emptyList()
+                    }) {
+                        Text(text = "Entendido", color = MaterialTheme.colorScheme.primary)
                     }
-                }
-            }
-            2 -> {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        StatRow("Posesión", "54%", "46%")
-                        StatRow("Remates a puerta", "6", "2")
-                        StatRow("Saques de esquina", "7", "3")
-                        StatRow("Faltas cometidas", "11", "14")
-                    }
-                }
-            }
-            3 -> {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Resultados de la jornada disponibles.",
-                            textAlign = TextAlign.Center,
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(20.dp)
+            )
         }
     }
 }
@@ -462,6 +308,160 @@ fun StatRow(label: String, homeValue: String, awayValue: String) {
                     .clip(CircleShape)
                     .background(RayoRed)
             )
+        }
+    }
+}
+
+@Composable
+fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
+    // Conversión horaria exacta a Europa/Madrid (gestiona verano e invierno automáticamente)
+    val formattedDateTime = remember(match.dateText) {
+        try {
+            val utcDateTime = ZonedDateTime.parse(match.dateText)
+            val madridZone = ZoneId.of("Europe/Madrid")
+            val localDateTime = utcDateTime.withZoneSameInstant(madridZone)
+
+            val formatter = DateTimeFormatter.ofPattern("EEEE, d 'de' MMMM · HH:mm", Locale("es", "ES"))
+            localDateTime.format(formatter).replaceFirstChar { it.uppercase() }
+        } catch (e: Exception) {
+            match.dateText
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Etiqueta de competición y jornada
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(50.dp)
+                ) {
+                    Text(
+                        text = match.competition,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+                if (!match.round.isNullOrEmpty()) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(50.dp)
+                    ) {
+                        Text(
+                            text = match.round,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Próximo partido",
+                fontSize = 13.sp,
+                color = Color.Gray,
+                fontWeight = FontWeight.Medium
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Escudos y enfrentamiento
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (!match.homeLogoUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = match.homeLogoUrl,
+                            contentDescription = match.homeTeam,
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    Text(
+                        text = match.homeTeam,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2
+                    )
+                }
+
+                Text(
+                    text = "VS",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (!match.awayLogoUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = match.awayLogoUrl,
+                            contentDescription = match.awayTeam,
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    Text(
+                        text = match.awayTeam,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Fecha y hora local de Madrid
+            Text(
+                text = formattedDateTime,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Estadio real (solo se muestra si la API trae un estadio válido)
+            if (!match.venue.isNullOrEmpty() && match.venue != "Estadio por confirmar") {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "🏟️ ${match.venue}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

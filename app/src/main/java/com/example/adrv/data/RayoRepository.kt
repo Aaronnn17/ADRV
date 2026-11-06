@@ -1,5 +1,6 @@
 package com.example.adrv.data
 
+import com.example.adrv.model.ApiNewsResponse
 import com.example.adrv.model.ApiSquadData
 import com.example.adrv.model.ApiStandingsData
 import com.example.adrv.model.RayoData
@@ -15,6 +16,8 @@ object RayoRepository {
     private const val GITHUB_STANDINGS_URL = "https://raw.githubusercontent.com/Aaronnn17/ADRV/refs/heads/master/standings.json"
     // URL de la Plantilla
     private const val GITHUB_SQUAD_URL = "https://raw.githubusercontent.com/Aaronnn17/ADRV/refs/heads/master/squad.json"
+    // URL de las Noticias
+    private const val GITHUB_NEWS_URL = "https://raw.githubusercontent.com/Aaronnn17/ADRV/refs/heads/master/news.json"
 
 
     suspend fun fetchRayoData(): RayoData? = withContext(Dispatchers.IO) {
@@ -41,6 +44,16 @@ object RayoRepository {
         try {
             val jsonString = URL(GITHUB_SQUAD_URL).readText()
             Gson().fromJson(jsonString, ApiSquadData::class.java)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun fetchNewsData(): ApiNewsResponse? = withContext(Dispatchers.IO) {
+        try {
+            val jsonString = URL(GITHUB_NEWS_URL).readText()
+            Gson().fromJson(jsonString, ApiNewsResponse::class.java)
         } catch (e: Exception) {
             e.printStackTrace()
             null

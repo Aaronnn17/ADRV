@@ -52,6 +52,12 @@ import com.example.adrv.data.BarcodeAnalyzer
 import com.example.adrv.model.AbonoData
 import com.example.adrv.ui.components.BarcodeImage
 import com.example.adrv.ui.theme.RayoRed
+import android.app.Activity
+import android.view.WindowManager
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 @Composable
 fun AbonoScreen(
@@ -61,6 +67,7 @@ fun AbonoScreen(
     val storage = remember { AbonoStorage(context) }
     var abonoData by remember { mutableStateOf(storage.loadAbonoData()) }
     var showEditDialog by remember { mutableStateOf(false) }
+    var showFullScreenAbono by remember { mutableStateOf(false) }
 
     val frontPhotoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -104,7 +111,7 @@ fun AbonoScreen(
         ) {
             Column {
                 Text(
-                    text = "Abono Digital 2D",
+                    text = "Abono Digital",
                     fontWeight = FontWeight.Black,
                     fontSize = 22.sp,
                     color = MaterialTheme.colorScheme.onBackground
@@ -128,7 +135,15 @@ fun AbonoScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         // Digital Pass
-        OfficialPhysicalCardPass2D(data = abonoData)
+        OfficialPhysicalCardPass2D(
+            data = abonoData,
+            onClick = {
+                // Solo se amplía si hay un código de barras válido guardado
+                if (abonoData.barcodeNumber.isNotBlank()) {
+                    showFullScreenAbono = true
+                }
+            }
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -179,6 +194,13 @@ fun AbonoScreen(
         }
     }
 
+    if (showFullScreenAbono) {
+        FullScreenAbonoDialog(
+            data = abonoData,
+            onDismiss = { showFullScreenAbono = false }
+        )
+    }
+
     if (showEditDialog) {
         EditAbonoDialog(
             data = abonoData,
@@ -192,14 +214,15 @@ fun AbonoScreen(
     }
 }
 
-// Replica estilizada del carnet (Estilo Premium 3D / Wallet)
+// Replica estilizada del carnet (Estilo Premium 3D / Wallet) fiel al físico
 @Composable
-fun OfficialPhysicalCardPass2D(data: AbonoData) {
+fun OfficialPhysicalCardPass2D(data: AbonoData, onClick: () -> Unit = {}) {
     if (data.barcodeNumber.isBlank()) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(0.60f),
+                .aspectRatio(0.60f)
+                .clickable { onClick() },
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -212,28 +235,32 @@ fun OfficialPhysicalCardPass2D(data: AbonoData) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(0.60f),
+            .aspectRatio(0.60f)
+            .clickable { onClick() },
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA)),
+        // Gris claro para simular el plástico y destacar el blanco del código de barras
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE5E7EB)),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
+        // En lugar de un padding global, usamos padding por secciones para que el rojo llegue al borde
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
+            // --- 1. CABECERA (LOGO 26/27) ---
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp, start = 24.dp, end = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Text(text = "26", fontWeight = FontWeight.Black, fontSize = 32.sp, color = Color(0xFF1E293B))
-                    Text(text = "⚡", fontSize = 36.sp, color = RayoRed)
-                    Text(text = "27", fontWeight = FontWeight.Black, fontSize = 32.sp, color = RayoRed)
+                    Text(text = "26", fontWeight = FontWeight.Black, fontSize = 42.sp, color = Color(0xFF1E293B))
+                    Text(text = "⚡", fontSize = 42.sp, color = RayoRed)
+                    Text(text = "27", fontWeight = FontWeight.Black, fontSize = 42.sp, color = Color(0xFF1E293B))
                 }
                 Text(
                     text = "ABONO RAYO VALLECANO DE MADRID",
@@ -244,73 +271,89 @@ fun OfficialPhysicalCardPass2D(data: AbonoData) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Column(modifier = Modifier.fillMaxWidth()) {
+            // --- 2. DATOS DEL ABONADO (Alineados a la izquierda como el original) ---
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+            ) {
                 Text(
                     text = "ABONADO Nº : ${data.abonadoNo.ifBlank { "----" }}",
                     fontWeight = FontWeight.Black,
-                    fontSize = 18.sp,
+                    fontSize = 17.sp,
                     color = Color.Black
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = data.nombre.uppercase().ifBlank { "NOMBRE" },
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
                     color = Color.Black
                 )
                 Text(
                     text = data.apellidos.uppercase().ifBlank { "APELLIDOS" },
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
                     color = Color.Black
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "PUERTAS : ${data.puertas.ifBlank { "--" }}",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     color = Color.Black
                 )
                 Text(
                     text = data.grada.uppercase().ifBlank { "SECTOR" },
-                    fontWeight = FontWeight.Black,
-                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+
+                // Fila de Fila y Asiento
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "FILA: ${data.fila.ifBlank { "-" }}", fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.Black)
-                    Text(text = "ASIENTO: ${data.asiento.ifBlank { "-" }}", fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.Black)
+                    Text(text = "FILA: ${data.fila.ifBlank { "-" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                    Text(text = "ASIENTO: ${data.asiento.ifBlank { "-" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Fila de Categoría y Código de socio (Adulto / U03CCA)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = data.categoria.uppercase().ifBlank { "ADULTO" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                    Text(text = data.codigoSocio.uppercase().ifBlank { "------" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
+            // --- 3. FRANJA ROJA (Ocupa el 100% del ancho) ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(RayoRed)
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = data.temporada.uppercase().ifBlank { "TEMPORADA 2026/2027" },
                     fontWeight = FontWeight.Black,
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     color = Color.White,
                     letterSpacing = 1.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
+            // --- 4. CÓDIGO DE BARRAS ---
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 BarcodeImage(
@@ -435,4 +478,54 @@ fun EditAbonoDialog(
             TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
     )
+}
+
+@Composable
+fun FullScreenAbonoDialog(
+    data: AbonoData,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val activity = context as? Activity
+
+    // Este efecto sube el brillo al máximo al abrirse y lo restaura al cerrarse
+    DisposableEffect(Unit) {
+        val window = activity?.window
+        val originalBrightness = window?.attributes?.screenBrightness
+
+        window?.attributes = window?.attributes?.apply {
+            screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+        }
+
+        onDispose {
+            window?.attributes = window?.attributes?.apply {
+                screenBrightness = originalBrightness ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            }
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false, // Permite ocupar toda la pantalla
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.90f)) // Fondo oscuro casi opaco
+                .clickable { onDismiss() }, // Si tocas fuera o dentro, se cierra
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                // Reutilizamos tu diseño exacto, pero solo para mostrar
+                OfficialPhysicalCardPass2D(data = data, onClick = onDismiss)
+            }
+        }
+    }
 }

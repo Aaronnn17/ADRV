@@ -137,7 +137,6 @@ fun EquipoScreen() {
 @Composable
 fun CalendarioView() {
     var rayoData by remember { mutableStateOf<RayoData?>(null) }
-    var selectedMatch by remember { mutableStateOf<ApiMatch?>(null) }
     var currentMonth by remember { mutableStateOf(YearMonth.now(ZoneId.of("Europe/Madrid"))) }
 
     val scrollState = rememberScrollState()
@@ -151,10 +150,24 @@ fun CalendarioView() {
             try {
                 Instant.parse(match.dateText).atZone(ZoneId.of("Europe/Madrid")).toLocalDate()
             } catch (e: Exception) {
-                LocalDate.MIN
+                try {
+                    LocalDate.parse(match.dateText.substring(0, 10))
+                } catch (ex: Exception) {
+                    LocalDate.MIN
+                }
             }
         } ?: emptyMap()
     }
+
+    // 1. Fecha de hoy por defecto para marcar visualmente la celda
+    val today = LocalDate.now(ZoneId.of("Europe/Madrid"))
+    var selectedDate by remember { mutableStateOf(today) }
+
+    // 2. Partido explícito seleccionado para el panel de detalles inferior
+    var userSelectedMatch by remember { mutableStateOf<ApiMatch?>(null) }
+
+    // Si el usuario no ha pinchado ningún partido, podemos mostrar por defecto el de hoy si lo hay, o dejarlo vacío
+    val activeMatch = userSelectedMatch ?: matchesByDate[today]
 
     Column(
         modifier = Modifier
@@ -224,7 +237,9 @@ fun CalendarioView() {
                             } else {
                                 val date = currentMonth.atDay(currentDay)
                                 val matchOnThisDay = matchesByDate[date]
-                                val isSelected = selectedMatch != null && matchOnThisDay?.id == selectedMatch?.id
+
+                                // 3. Se marca en rojo si coincide con la fecha seleccionada (por defecto hoy)
+                                val isSelected = (date == selectedDate)
 
                                 DayCell(
                                     dayNumber = currentDay,
@@ -232,8 +247,12 @@ fun CalendarioView() {
                                     isSelected = isSelected,
                                     modifier = Modifier.weight(1f),
                                     onClick = {
+                                        // Actualizamos siempre el día visual seleccionado
+                                        selectedDate = date
+
+                                        // Y si ese día tiene partido, actualizamos el panel de detalles inferior
                                         if (matchOnThisDay != null) {
-                                            selectedMatch = matchOnThisDay
+                                            userSelectedMatch = matchOnThisDay
                                         }
                                     }
                                 )
@@ -249,8 +268,8 @@ fun CalendarioView() {
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // PANEL DETALLES
-            selectedMatch?.let { match ->
+            // PANEL DETALLES: Solo se muestra si hay un partido asociado al día seleccionado o el de hoy
+            activeMatch?.let { match ->
                 MatchDetailsPanel(match)
                 Spacer(modifier = Modifier.height(32.dp))
             }
