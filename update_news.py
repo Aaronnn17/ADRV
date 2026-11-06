@@ -18,30 +18,51 @@ def update_news():
         print(f"Error al descargar el RSS: {e}")
         return
 
-    # Parsear el documento XML del RSS
     root = ET.fromstring(xml_data)
     channel = root.find("channel")
     
     news_list = []
     
+    # Namespaces definidos en el XML del RSS para capturar content:encoded
+    namespaces = {
+        'content': 'http://purl.org/rss/1.0/modules/content/'
+    }
+    
     if channel is not None:
+        # Recorremos TODOS los items sin excepción
         for item in channel.findall("item"):
-            title = item.find("title").text.strip() if item.find("title") is not None else ""
-            link = item.find("link").text.strip() if item.find("link") is not None else ""
-            pub_date = item.find("pubDate").text.strip() if item.find("pubDate") is not None else ""
-            guid = item.find("guid").text.strip() if item.find("guid") is not None else link
+            title_elem = item.find("title")
+            title = title_elem.text.strip() if title_elem is not None and title_elem.text else ""
             
-            # Extraer la imagen de la etiqueta <enclosure>
+            link_elem = item.find("link")
+            link = link_elem.text.strip() if link_elem is not None and link_elem.text else ""
+            
+            pub_date_elem = item.find("pubDate")
+            pub_date = pub_date_elem.text.strip() if pub_date_elem is not None and pub_date_elem.text else ""
+            
+            guid_elem = item.find("guid")
+            guid = guid_elem.text.strip() if guid_elem is not None and guid_elem.text else link
+            
+            # Imagen desde <enclosure>
             image_url = ""
             enclosure = item.find("enclosure")
             if enclosure is not None:
                 image_url = enclosure.get("url", "")
 
-            # Extraer descripción o contenido
+            # Descripción corta (<description>)
             description = ""
             desc_tag = item.find("description")
             if desc_tag is not None and desc_tag.text:
                 description = desc_tag.text.strip()
+
+            # Contenido completo (<content:encoded>)
+            content_html = ""
+            content_elem = item.find("content:encoded", namespaces)
+            if content_elem is not None and content_elem.text:
+                content_html = content_elem.text.strip()
+
+            # Categorías (puede haber varias)
+            categories = [cat.text.strip() for cat in item.findall("category") if cat.text]
 
             news_list.append({
                 "id": guid,
@@ -49,18 +70,21 @@ def update_news():
                 "link": link,
                 "published": pub_date,
                 "summary": description,
+                "content": content_html,
+                "categories": categories,
                 "image": image_url
             })
 
     data = {
         "updatedAt": datetime.now().isoformat(),
+        "totalNews": len(news_list),
         "news": news_list
     }
 
     with open("news.json", "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
     
-    print(f"¡{len(news_list)} noticias extraídas y guardadas en news.json con éxito!")
+    print(f"¡{len(news_list)} noticias extraídas con todos sus datos y guardadas en news.json!")
 
 if __name__ == "__main__":
     update_news()
