@@ -7,6 +7,52 @@ print(f"API Key presente: {bool(API_KEY)}")
 
 headers = {'X-Auth-Token': API_KEY} if API_KEY else {}
 
+def get_stadium(home_team_name):
+    name = home_team_name.lower()
+    
+    if "barcelona" in name:
+        return "Spotify Camp Nou"
+    elif "real madrid" in name:
+        return "Estadio Santiago Bernabéu"
+    elif "rayo vallecano" in name:
+        return "Estadio de Vallecas"
+    elif "atletico" in name or "atlético" in name:
+        return "Cívitas Metropolitano"
+    elif "betis" in name:
+        return "Benito Villamarín"
+    elif "real sociedad" in name:
+        return "Reale Arena"
+    elif "sevilla" in name:
+        return "Ramón Sánchez-Pizjuán"
+    elif "athletic" in name:
+        return "San Mamés"
+    elif "deportivo" in name:
+        return "Abanca-Riazor"
+    elif "villarreal" in name:
+        return "Estadio de la Cerámica"
+    elif "celta" in name:
+        return "Abanca-Balaídos"
+    elif "alaves" in name or "alavés" in name:
+        return "Mendizorrotza"
+    elif "getafe" in name:
+        return "Coliseum"
+    elif "espanyol" in name:
+        return "Stage Front Stadium"
+    elif "osasuna" in name:
+        return "El Sadar"
+    elif "racing" in name:
+        return "Campos de Sport de El Sardinero"
+    elif "elche" in name:
+        return "Estadio Martínez Valero"
+    elif "levante" in name:
+        return "Ciutat de València"
+    elif "valencia" in name:
+        return "Camp de Mestalla"
+    elif "malaga" in name or "málaga" in name:
+        return "La Rosaleda"
+    else:
+        return f"Estadio de {home_team_name}"
+
 team_url = "https://api.football-data.org/v4/teams/87"
 team_info = {}
 try:
@@ -28,6 +74,8 @@ try:
         for match in matches:
             home_team = match.get("homeTeam", {}).get("name", "")
             away_team = match.get("awayTeam", {}).get("name", "")
+            
+            venue_name = get_stadium(home_team)
             
             score = match.get("score", {})
             full_time = score.get("fullTime", {})
@@ -51,7 +99,7 @@ try:
                 "round": f"Jornada {match.get('matchday', '')}",
                 "homeLogoUrl": match.get("homeTeam", {}).get("crest", ""),
                 "awayLogoUrl": match.get("awayTeam", {}).get("crest", ""),
-                "venue": team_info.get("venue", "Estadio de Vallecas") if "Rayo" in home_team else "Estadio Visitante",
+                "venue": venue_name,
                 "referee": main_referee
             }
             formatted_matches.append(match_obj)
