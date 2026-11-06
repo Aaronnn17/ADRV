@@ -46,6 +46,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add matches.json standings.json squad.json
+          git add matches.json standings.json squad.json news.json
           git diff --quiet && git diff --staged --quiet || git commit -m "Actualización automática de Calendario, Clasificación, Plantilla y Noticias"
           git push
