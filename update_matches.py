@@ -29,20 +29,9 @@ try:
             home_team = match.get("homeTeam", {}).get("name", "")
             away_team = match.get("awayTeam", {}).get("name", "")
             
-            # Lógica corregida para el estadio:
-            # 1. Si la API proporciona un campo de estadio en el equipo local o en el partido
-            # 2. Si el Rayo Vallecano juega como local ("Rayo Vallecano" en home_team), es el Estadio de Vallecas.
-            # 3. Si juega fuera, asignamos el estadio del equipo local o un campo visitante.
+            # Extraemos el estadio directamente del objeto de la API o del equipo local de forma segura
             home_team_obj = match.get("homeTeam", {})
-            api_venue = match.get("venue") or home_team_obj.get("venue")
-
-            if api_venue:
-                venue_name = api_venue
-            elif "Rayo Vallecano" in home_team:
-                venue_name = "Estadio de Vallecas"
-            else:
-                # Si juega fuera, usamos el nombre del estadio del equipo local si lo hay, o el nombre del equipo local
-                venue_name = f"Estadio de {home_team}"
+            venue_name = match.get("venue") or home_team_obj.get("venue") or "Estadio por confirmar"
             
             score = match.get("score", {})
             full_time = score.get("fullTime", {})
