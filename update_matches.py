@@ -28,6 +28,7 @@ try:
         for match in matches:
             home_team = match.get("homeTeam", {}).get("name", "")
             away_team = match.get("awayTeam", {}).get("name", "")
+            venue_name = match_data.get("venue") or match_data.get("area", {}).get("name") or "Estadio de Vallecas"
             
             score = match.get("score", {})
             full_time = score.get("fullTime", {})
@@ -51,7 +52,7 @@ try:
                 "round": f"Jornada {match.get('matchday', '')}",
                 "homeLogoUrl": match.get("homeTeam", {}).get("crest", ""),
                 "awayLogoUrl": match.get("awayTeam", {}).get("crest", ""),
-                "venue": team_info.get("venue", "Estadio de Vallecas") if "Rayo" in home_team else "Estadio Visitante",
+                "venue": venue_name,
                 "referee": main_referee
             }
             formatted_matches.append(match_obj)
