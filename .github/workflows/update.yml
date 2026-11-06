@@ -21,6 +21,9 @@ jobs:
       - name: Instalar dependencias
         run: pip install requests
 
+      - name: Instalar dependencias (requests y pycountry)
+        run: pip install requests pycountry
+
       - name: Ejecutar script de Calendario
         env:
           FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
