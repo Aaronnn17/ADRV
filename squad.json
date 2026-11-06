@@ -1,0 +1,201 @@
+{
+    "club": {
+        "id": 87,
+        "name": "Rayo Vallecano de Madrid",
+        "shortName": "Rayo Vallecano",
+        "crest": "https://crests.football-data.org/87.png",
+        "venue": "Estadio del Rayo Vallecano",
+        "coach": "Beñat San José"
+    },
+    "squad": [
+        {
+            "id": 3087,
+            "name": "Emil Audero",
+            "position": "Goalkeeper",
+            "nationality": "Indonesia",
+            "shirtNumber": null
+        },
+        {
+            "id": 46245,
+            "name": "Augusto Batalla",
+            "position": "Goalkeeper",
+            "nationality": "Argentina",
+            "shirtNumber": null
+        },
+        {
+            "id": 81425,
+            "name": "Morro",
+            "position": "Goalkeeper",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 133288,
+            "name": "Dani Cárdenas",
+            "position": "Goalkeeper",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 2071,
+            "name": "Luiz Felipe",
+            "position": "Defence",
+            "nationality": "Italy",
+            "shirtNumber": null
+        },
+        {
+            "id": 2151,
+            "name": "Marash Kumbulla",
+            "position": "Defence",
+            "nationality": "Italy",
+            "shirtNumber": null
+        },
+        {
+            "id": 7925,
+            "name": "Florian Lejeune",
+            "position": "Defence",
+            "nationality": "France",
+            "shirtNumber": null
+        },
+        {
+            "id": 8716,
+            "name": "Iván Balliu",
+            "position": "Defence",
+            "nationality": "Albania",
+            "shirtNumber": null
+        },
+        {
+            "id": 33650,
+            "name": "Mujaid Sadick",
+            "position": "Defence",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 92048,
+            "name": "Pedrosa",
+            "position": "Defence",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 114955,
+            "name": "Andrei Rațiu",
+            "position": "Defence",
+            "nationality": "Romania",
+            "shirtNumber": null
+        },
+        {
+            "id": 168725,
+            "name": "Jozhua Vertrouwd",
+            "position": "Defence",
+            "nationality": "Netherlands",
+            "shirtNumber": null
+        },
+        {
+            "id": 260906,
+            "name": "Pelayo Fernández",
+            "position": "Defence",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 32109,
+            "name": "Óscar Valentín",
+            "position": "Midfield",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 32124,
+            "name": "Unai López",
+            "position": "Midfield",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 32228,
+            "name": "Pedro Díaz",
+            "position": "Midfield",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 37649,
+            "name": "Pathé Ciss",
+            "position": "Midfield",
+            "nationality": "Senegal",
+            "shirtNumber": null
+        },
+        {
+            "id": 98032,
+            "name": "Randy Ntekja",
+            "position": "Midfield",
+            "nationality": "Angola",
+            "shirtNumber": null
+        },
+        {
+            "id": 300277,
+            "name": "Gnangoro Bouare",
+            "position": "Midfield",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 32127,
+            "name": "Raúl de Tomás",
+            "position": "Offence",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 32312,
+            "name": "Álvaro García",
+            "position": "Offence",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 33496,
+            "name": "Isi Palazón",
+            "position": "Offence",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 106014,
+            "name": "Alexandre Alemão",
+            "position": "Offence",
+            "nationality": "Brazil",
+            "shirtNumber": null
+        },
+        {
+            "id": 115175,
+            "name": "Sergio Camello",
+            "position": "Offence",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 133276,
+            "name": "Jorge de Frutos",
+            "position": "Offence",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 187117,
+            "name": "Fran Perez",
+            "position": "Offence",
+            "nationality": "Spain",
+            "shirtNumber": null
+        },
+        {
+            "id": 216372,
+            "name": "Georgiy Tsitaishvili",
+            "position": "Offence",
+            "nationality": "Georgia",
+            "shirtNumber": null
+        }
+    ]
+}
