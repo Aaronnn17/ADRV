@@ -42,6 +42,13 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.Home
 
 @Composable
 fun EquipoScreen() {
@@ -268,10 +275,22 @@ fun CalendarioView() {
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // PANEL DETALLES: Solo se muestra si hay un partido asociado al día seleccionado o el de hoy
-            activeMatch?.let { match ->
-                MatchDetailsPanel(match)
-                Spacer(modifier = Modifier.height(32.dp))
+            // PANEL DETALLES CON ANIMACIÓN DE TRANSICIÓN SUAVE
+            AnimatedContent(
+                targetState = activeMatch,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                },
+                label = "MatchPanelAnimation"
+            ) { targetMatch ->
+                if (targetMatch != null) {
+                    Column {
+                        MatchDetailsPanel(targetMatch)
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
             }
         }
     }
@@ -297,26 +316,45 @@ fun DayCell(
             .clickable(enabled = match != null) { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = dayNumber.toString(),
-                fontWeight = if (match != null) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
-                fontSize = 14.sp
-            )
+        if (match != null) {
+            val isHome = match.homeTeam.contains("Rayo", ignoreCase = true)
+            val rivalLogo = if (isHome) match.awayLogoUrl else match.homeLogoUrl
 
-            if (match != null) {
-                Spacer(modifier = Modifier.height(2.dp))
-                val rivalLogo = if (match.homeTeam.contains("Rayo")) match.awayLogoUrl else match.homeLogoUrl
+            // Contenedor interno para que el icono superpuesto no se corte por el círculo
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                // Escudo del rival en grande sustituyendo al número del día
                 AsyncImage(
                     model = rivalLogo,
                     contentDescription = "Partido",
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(32.dp)
                 )
+
+                // Mini icono superpuesto indicando local/visitante
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = (-2).dp, y = (-2).dp)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF0F172A)), // Fondo oscuro para contrastar
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isHome) Icons.Default.Home else Icons.Default.Flight,
+                        contentDescription = if (isHome) "En casa" else "Fuera",
+                        tint = Color.White,
+                        modifier = Modifier.size(10.dp)
+                    )
+                }
             }
+        } else {
+            // Si no hay partido, pintamos el número de forma normal
+            Text(
+                text = dayNumber.toString(),
+                fontWeight = FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+                fontSize = 14.sp
+            )
         }
     }
 }
