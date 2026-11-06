@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.adrv.data.RayoRepository
 import com.example.adrv.model.ApiMatch
+import com.example.adrv.model.ApiSquadData
 import com.example.adrv.model.ApiStanding
 import com.example.adrv.model.ApiStandingsData
 import com.example.adrv.model.RayoData
@@ -48,29 +49,47 @@ fun EquipoScreen() {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // TABS SUPERIORES
-        TabRow(
-            selectedTabIndex = selectedTabIndex,
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.primary,
-            indicator = { tabPositions ->
-                TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                    color = MaterialTheme.colorScheme.primary
+        // ----------------------------------------------------
+        // PESTAÑAS SUPERIORES ESTILIZADAS (TIPO CÁPSULA)
+        // ----------------------------------------------------
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(50.dp)
                 )
-            }
+                .padding(4.dp) // Margen interior para que la pastilla respire
         ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTabIndex == index,
-                    onClick = { selectedTabIndex = index },
-                    text = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    val selected = selectedTabIndex == index
+                    Box(
+                        modifier = Modifier
+                            .weight(1f) // Reparte el ancho de forma equitativa entre las 3 pestañas
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(
+                                if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
+                            )
+                            .clickable { selectedTabIndex = index },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
                             text = title,
-                            fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            softWrap = false, // Evita que "Clasificación" se parta en dos líneas
+                            textAlign = TextAlign.Center
                         )
                     }
-                )
+                }
             }
         }
 
@@ -514,11 +533,175 @@ fun TeamDetailRow(label: String, value: String) {
 }
 
 // ----------------------------------------------------
-// VISTA 3: PLANTILLA
+// VISTA 3: PLANTILLA (Actualizada con posición y banderas)
 // ----------------------------------------------------
 @Composable
 fun PlantillaView() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Plantilla en construcción...")
+    var squadData by remember { mutableStateOf<ApiSquadData?>(null) }
+
+    LaunchedEffect(Unit) {
+        squadData = RayoRepository.fetchSquadData()
+    }
+
+    if (squadData == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        val playersByPosition = squadData!!.squad.groupBy { it.position }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Cabecera del Club y Entrenador (Ya centrada y corregida)
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = squadData!!.club.crest,
+                            contentDescription = "Escudo Rayo",
+                            modifier = Modifier.size(60.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = squadData!!.club.name,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (!squadData!!.club.coach.isNullOrEmpty()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Entrenador: ${squadData!!.club.coach}",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Recorremos las posiciones
+            playersByPosition.forEach { (position, players) ->
+                item {
+                    Text(
+                        text = translatePosition(position),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+
+                items(players) { player ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                // --- CAJITA DE POSICIÓN (Sustituye al dorsal) ---
+                                val (posShort, posColor) = getPositionBadgeInfo(player.position)
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .background(posColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = posShort,
+                                        fontWeight = FontWeight.Bold,
+                                        color = posColor,
+                                        fontSize = 13.sp
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
+                                // Nombre del jugador
+                                Text(
+                                    text = player.name,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 15.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // --- BANDERA VISUAL SEGÚN NACIONALIDAD ---
+                            Text(
+                                text = getFlagEmoji(player.countryCode),
+                                fontSize = 22.sp,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------
+// FUNCIONES AUXILIARES PARA POSICIONES Y BANDERAS
+// ----------------------------------------------------
+
+// Devuelve la abreviatura y el color correspondiente a cada demarcación
+fun getPositionBadgeInfo(position: String): Pair<String, Color> {
+    return when (position.lowercase()) {
+        "goalkeeper" -> Pair("PT", Color(0xFFFFB300)) // Amarillo
+        "defence"    -> Pair("DF", Color(0xFF1E88E5)) // Azul
+        "midfield"   -> Pair("MC", Color(0xFF43A047)) // Verde
+        "offence"    -> Pair("DL", Color(0xFFE53935)) // Rojo
+        else         -> Pair("S/P", Color.Gray)
+    }
+}
+
+// Convierte cualquier código ISO de 2 letras (ej: "ID", "ES") en su emoji de bandera matemático
+fun getFlagEmoji(countryCode: String?): String {
+    if (countryCode.isNullOrEmpty() || countryCode.length != 2) return "🌍"
+
+    val code = countryCode.uppercase()
+    val firstChar = Character.codePointAt(code, 0) - 0x41 + 0x1F1E6
+    val secondChar = Character.codePointAt(code, 1) - 0x41 + 0x1F1E6
+
+    return String(Character.toChars(firstChar)) + String(Character.toChars(secondChar))
+}
+
+fun translatePosition(position: String): String {
+    return when (position.lowercase()) {
+        "goalkeeper" -> "Porteros"
+        "defence" -> "Defensas"
+        "midfield" -> "Centrocampistas"
+        "offence" -> "Delanteros"
+        else -> position
     }
 }

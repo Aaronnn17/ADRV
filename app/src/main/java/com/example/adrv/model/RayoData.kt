@@ -72,3 +72,26 @@ data class ApiStanding(
     val goalsAgainst: Int,
     val goalDifference: Int
 )
+
+data class ApiSquadData(
+    val club: ClubDetails,
+    val squad: List<ApiPlayerDetail>
+)
+
+data class ClubDetails(
+    val id: Int,
+    val name: String,
+    val shortName: String,
+    val crest: String,
+    val venue: String?,
+    val coach: String?
+)
+
+data class ApiPlayerDetail(
+    val id: Int,
+    val name: String,
+    val position: String,
+    val nationality: String,
+    val countryCode: String?,
+    val shirtNumber: Int?
+)
