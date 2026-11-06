@@ -28,7 +28,9 @@ try:
         for match in matches:
             home_team = match.get("homeTeam", {}).get("name", "")
             away_team = match.get("awayTeam", {}).get("name", "")
-            venue_name = match_data.get("venue") or match_data.get("area", {}).get("name") or "Estadio de Vallecas"
+            
+            # CORRECCIÓN: Usar 'match' en lugar de 'match_data' y buscar el venue de forma segura
+            venue_name = match.get("venue") or match.get("homeTeam", {}).get("venue") or "Estadio de Vallecas"
             
             score = match.get("score", {})
             full_time = score.get("fullTime", {})
