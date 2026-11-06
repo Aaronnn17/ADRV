@@ -37,10 +37,12 @@ data class ApiMatch(
     val homeScore: Int?,
     val awayScore: Int?,
     val status: String,
+    val statusApi: String? = null,
     val dateText: String,
     val competition: String,
     val round: String,
     val homeLogoUrl: String,
     val awayLogoUrl: String,
-    val venue: String? = null
+    val venue: String? = null,
+    val referee: String? = null
 )
