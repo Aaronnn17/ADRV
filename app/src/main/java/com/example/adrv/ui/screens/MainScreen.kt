@@ -27,16 +27,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.adrv.ui.theme.RayoRed
 
+// 1. CAMBIAMOS EL NOMBRE AQUÍ A "Equipo"
 sealed class NavTab(val title: String, val icon: ImageVector) {
     object Hoy : NavTab("Hoy", Icons.Default.Home)
     object Noticias : NavTab("Noticias", Icons.Default.Newspaper)
-    object Calendario : NavTab("Calendario", Icons.Default.CalendarMonth)
+    object Equipo : NavTab("Equipo", Icons.Default.CalendarMonth) // <--- Cambio aquí
     object Abono : NavTab("Abono", Icons.Default.CreditCard)
 }
 
 @Composable
 fun MainScreen() {
-    val tabs = listOf(NavTab.Hoy, NavTab.Noticias, NavTab.Calendario, NavTab.Abono)
+    // 2. ACTUALIZAMOS LA LISTA DE TABS
+    val tabs = listOf(NavTab.Hoy, NavTab.Noticias, NavTab.Equipo, NavTab.Abono) // <--- Cambio aquí
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     Scaffold(
@@ -83,7 +85,7 @@ fun MainScreen() {
             when (selectedTabIndex) {
                 0 -> HoyScreen()
                 1 -> NoticiasScreen()
-                2 -> CalendarioScreen()
+                2 -> EquipoScreen() // 3. LLAMAMOS A LA NUEVA PANTALLA AQUÍ
                 3 -> AbonoScreen()
             }
         }

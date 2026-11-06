@@ -46,3 +46,29 @@ data class ApiMatch(
     val venue: String? = null,
     val referee: String? = null
 )
+
+data class ApiStandingsData(
+    val metadata: StandingsMetadata,
+    val standings: List<ApiStanding>
+)
+
+data class StandingsMetadata(
+    val competition: String,
+    val season: String,
+    val matchday: Int
+)
+
+data class ApiStanding(
+    val position: Int,
+    val teamName: String,
+    val shortName: String,
+    val crest: String,
+    val playedGames: Int,
+    val won: Int,
+    val draw: Int,
+    val lost: Int,
+    val points: Int,
+    val goalsFor: Int,
+    val goalsAgainst: Int,
+    val goalDifference: Int
+)
