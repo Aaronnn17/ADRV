@@ -94,13 +94,13 @@
             "teamName": "Athletic Club",
             "shortName": "Athletic",
             "crest": "https://crests.football-data.org/77.png",
-            "playedGames": 10,
+            "playedGames": 11,
             "won": 4,
-            "draw": 3,
+            "draw": 4,
             "lost": 3,
-            "points": 15,
-            "goalsFor": 14,
-            "goalsAgainst": 10,
+            "points": 16,
+            "goalsFor": 15,
+            "goalsAgainst": 11,
             "goalDifference": 4
         },
         {
@@ -108,17 +108,31 @@
             "teamName": "RC Deportivo La Coruña",
             "shortName": "Deportivo",
             "crest": "https://crests.football-data.org/560.png",
-            "playedGames": 11,
+            "playedGames": 12,
             "won": 3,
-            "draw": 5,
+            "draw": 6,
             "lost": 3,
-            "points": 14,
+            "points": 15,
             "goalsFor": 15,
             "goalsAgainst": 14,
             "goalDifference": 1
         },
         {
             "position": 9,
+            "teamName": "Real Racing Club de Santander",
+            "shortName": "Santander",
+            "crest": "https://crests.football-data.org/5335.png",
+            "playedGames": 12,
+            "won": 4,
+            "draw": 2,
+            "lost": 6,
+            "points": 14,
+            "goalsFor": 17,
+            "goalsAgainst": 30,
+            "goalDifference": -13
+        },
+        {
+            "position": 10,
             "teamName": "Deportivo Alavés",
             "shortName": "Alavés",
             "crest": "https://crests.football-data.org/263.png",
@@ -132,7 +146,7 @@
             "goalDifference": -2
         },
         {
-            "position": 10,
+            "position": 11,
             "teamName": "Villarreal CF",
             "shortName": "Villarreal",
             "crest": "https://crests.football-data.org/94.png",
@@ -146,7 +160,7 @@
             "goalDifference": 0
         },
         {
-            "position": 11,
+            "position": 12,
             "teamName": "RC Celta de Vigo",
             "shortName": "Celta",
             "crest": "https://crests.football-data.org/558.png",
@@ -160,7 +174,21 @@
             "goalDifference": 0
         },
         {
-            "position": 12,
+            "position": 13,
+            "teamName": "RCD Espanyol de Barcelona",
+            "shortName": "Espanyol",
+            "crest": "https://crests.football-data.org/80.png",
+            "playedGames": 12,
+            "won": 3,
+            "draw": 3,
+            "lost": 6,
+            "points": 12,
+            "goalsFor": 13,
+            "goalsAgainst": 14,
+            "goalDifference": -1
+        },
+        {
+            "position": 14,
             "teamName": "Rayo Vallecano de Madrid",
             "shortName": "Rayo Vallecano",
             "crest": "https://crests.football-data.org/87.png",
@@ -174,7 +202,7 @@
             "goalDifference": -5
         },
         {
-            "position": 13,
+            "position": 15,
             "teamName": "Getafe CF",
             "shortName": "Getafe",
             "crest": "https://crests.football-data.org/82.png",
@@ -188,46 +216,18 @@
             "goalDifference": -8
         },
         {
-            "position": 14,
-            "teamName": "RCD Espanyol de Barcelona",
-            "shortName": "Espanyol",
-            "crest": "https://crests.football-data.org/80.png",
-            "playedGames": 11,
-            "won": 3,
-            "draw": 2,
-            "lost": 6,
-            "points": 11,
-            "goalsFor": 13,
-            "goalsAgainst": 14,
-            "goalDifference": -1
-        },
-        {
-            "position": 15,
+            "position": 16,
             "teamName": "CA Osasuna",
             "shortName": "Osasuna",
             "crest": "https://crests.football-data.org/79.png",
-            "playedGames": 11,
+            "playedGames": 12,
             "won": 3,
-            "draw": 2,
+            "draw": 3,
             "lost": 6,
-            "points": 11,
-            "goalsFor": 11,
-            "goalsAgainst": 22,
+            "points": 12,
+            "goalsFor": 12,
+            "goalsAgainst": 23,
             "goalDifference": -11
-        },
-        {
-            "position": 16,
-            "teamName": "Real Racing Club de Santander",
-            "shortName": "Santander",
-            "crest": "https://crests.football-data.org/5335.png",
-            "playedGames": 11,
-            "won": 3,
-            "draw": 2,
-            "lost": 6,
-            "points": 11,
-            "goalsFor": 15,
-            "goalsAgainst": 29,
-            "goalDifference": -14
         },
         {
             "position": 17,
@@ -276,14 +276,14 @@
             "teamName": "Málaga CF",
             "shortName": "Málaga",
             "crest": "https://crests.football-data.org/84.png",
-            "playedGames": 11,
+            "playedGames": 12,
             "won": 0,
             "draw": 5,
-            "lost": 6,
+            "lost": 7,
             "points": 5,
-            "goalsFor": 8,
-            "goalsAgainst": 21,
-            "goalDifference": -13
+            "goalsFor": 9,
+            "goalsAgainst": 23,
+            "goalDifference": -14
         }
     ]
 }
