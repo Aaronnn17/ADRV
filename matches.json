@@ -168,17 +168,17 @@
             "id": "match_564743",
             "homeTeam": "Real Sociedad de Fútbol",
             "awayTeam": "Rayo Vallecano de Madrid",
-            "homeScore": null,
-            "awayScore": null,
-            "status": "UPCOMING",
-            "statusApi": "TIMED",
+            "homeScore": 1,
+            "awayScore": 0,
+            "status": "FINISHED",
+            "statusApi": "FINISHED",
             "dateText": "2026-11-08T15:15:00Z",
             "competition": "Primera Division",
             "round": "Jornada 12",
             "homeLogoUrl": "https://crests.football-data.org/92.png",
             "awayLogoUrl": "https://crests.football-data.org/87.png",
             "venue": "Reale Arena",
-            "referee": "Por designar"
+            "referee": "Juan Martínez Munuera"
         },
         {
             "id": "match_564751",
