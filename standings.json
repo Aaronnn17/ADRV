@@ -21,6 +21,20 @@
         },
         {
             "position": 2,
+            "teamName": "Real Madrid CF",
+            "shortName": "Real Madrid",
+            "crest": "https://crests.football-data.org/86.png",
+            "playedGames": 12,
+            "won": 10,
+            "draw": 0,
+            "lost": 2,
+            "points": 30,
+            "goalsFor": 31,
+            "goalsAgainst": 10,
+            "goalDifference": 21
+        },
+        {
+            "position": 3,
             "teamName": "Club Atlético de Madrid",
             "shortName": "Atleti",
             "crest": "https://crests.football-data.org/78.png",
@@ -32,20 +46,6 @@
             "goalsFor": 22,
             "goalsAgainst": 8,
             "goalDifference": 14
-        },
-        {
-            "position": 3,
-            "teamName": "Real Madrid CF",
-            "shortName": "Real Madrid",
-            "crest": "https://crests.football-data.org/86.png",
-            "playedGames": 11,
-            "won": 9,
-            "draw": 0,
-            "lost": 2,
-            "points": 27,
-            "goalsFor": 28,
-            "goalsAgainst": 10,
-            "goalDifference": 18
         },
         {
             "position": 4,
@@ -262,14 +262,14 @@
             "teamName": "Valencia CF",
             "shortName": "Valencia",
             "crest": "https://crests.football-data.org/95.png",
-            "playedGames": 11,
+            "playedGames": 12,
             "won": 2,
             "draw": 3,
-            "lost": 6,
+            "lost": 7,
             "points": 9,
             "goalsFor": 8,
-            "goalsAgainst": 17,
-            "goalDifference": -9
+            "goalsAgainst": 20,
+            "goalDifference": -12
         },
         {
             "position": 20,
