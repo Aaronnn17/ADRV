@@ -3,6 +3,15 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import pycountry
+import unicodedata
+import urllib.parse
+import difflib
+
+# Función para quitar tildes y mayúsculas y comparar nombres sin fallos
+def normalize(text):
+    if not text: return ""
+    text = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8')
+    return text.lower().strip()
 
 API_KEY = os.environ.get('FOOTBALL_API_KEY')
 headers = {'X-Auth-Token': API_KEY} if API_KEY else {}
@@ -11,33 +20,26 @@ team_url = "https://api.football-data.org/v4/teams/87"
 web_squad_url = "https://www.rayovallecano.es/jugadores"
 
 try:
-    # 1. Obtenemos la base de datos oficial de la API como respaldo
+    # 1. API OFICIAL
     response = requests.get(team_url, headers=headers, timeout=15)
     raw_squad = []
     club_info = {
-        "id": 87,
-        "name": "Rayo Vallecano",
-        "shortName": "Rayo",
-        "crest": "",
-        "venue": "Estadio de Vallecas",
-        "coach": "Beñat San José"
+        "id": 87, "name": "Rayo Vallecano", "shortName": "Rayo",
+        "crest": "", "venue": "Estadio de Vallecas", "coach": "Beñat San José"
     }
 
     if response.status_code == 200:
         data = response.json()
-        club_info = {
-            "id": data.get("id"),
-            "name": data.get("name"),
-            "shortName": data.get("shortName"),
-            "crest": data.get("crest"),
-            "venue": data.get("venue"),
-            "coach": data.get("coach", {}).get("name", "Beñat San José")
-        }
+        club_info["id"] = data.get("id", 87)
+        club_info["name"] = data.get("name", club_info["name"])
+        club_info["shortName"] = data.get("shortName", club_info["shortName"])
+        club_info["crest"] = data.get("crest", "")
+        club_info["venue"] = data.get("venue", club_info["venue"])
         raw_squad = data.get("squad", [])
 
-    # 2. Scraping directo de los contenedores MkFootballSquadCard de la web del Rayo
+    # 2. WEB SCRAPING AVANZADO
     scraped_players = {}
-    print(f"Extrayendo tarjetas de jugadores desde: {web_squad_url}...")
+    print(f"Extrayendo datos esquivando el Lazy Loading desde: {web_squad_url}...")
     
     web_headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -47,106 +49,101 @@ try:
     if web_response.status_code == 200:
         soup = BeautifulSoup(web_response.text, 'html.parser')
         
-        # Buscamos todas las tarjetas que contengan 'MkFootballSquadCard' en sus clases
-        cards = soup.find_all(lambda tag: tag.has_attr('class') and any('MkFootballSquadCard' in c for c in tag['class']))
+        # Atacamos directamente al enlace que envuelve al jugador (Siempre es seguro)
+        links = soup.find_all('a', attrs={'aria-label': lambda x: x and 'Ver detalles de' in x})
         
-        for card in cards:
-            try:
-                # Nos aseguramos de coger la tarjeta principal de cada jugador
-                classes = card.get('class', [])
-                if not any(c == 'MkFootballSquadCard' for c in classes):
-                    continue
+        for link in links:
+            raw_name = link['aria-label'].replace('Ver detalles de', '').strip()
+            norm_name = normalize(raw_name)
+            
+            # --- FOTO: ESQUIVAR EL BASE64 ---
+            photo_url = ""
+            # Next.js a veces esconde la foto real en un <noscript>
+            noscript = link.find('noscript')
+            if noscript:
+                img = noscript.find('img')
+                if img and img.get('src'): photo_url = img.get('src')
+            
+            # Si no, miramos en srcset (donde están las verdaderas)
+            if not photo_url:
+                img = link.find('img')
+                if img:
+                    if img.get('srcset'):
+                        photo_url = img.get('srcset').split(',')[0].strip().split(' ')[0]
+                    elif img.get('src') and not img.get('src').startswith('data:'):
+                        photo_url = img.get('src')
+            
+            # Limpiar URL encriptada de Next.js (_next/image?url=...)
+            if '/_next/image?url=' in photo_url:
+                parsed_url = urllib.parse.urlparse(photo_url)
+                qs = urllib.parse.parse_qs(parsed_url.query)
+                if 'url' in qs:
+                    photo_url = qs['url'][0]
 
-                # Nombre completo del jugador (MkFootballSquadCard_fullName)
-                name_elem = card.find(class_=lambda x: x and 'fullName' in x)
-                player_name = name_elem.get_text(strip=True) if name_elem else ""
+            if photo_url.startswith('/'):
+                photo_url = f"https://www.rayovallecano.es{photo_url}"
 
-                # Dorsal (MkFootballSquadCard_number)
-                number_elem = card.find(class_=lambda x: x and 'number' in x)
-                shirt_number = None
-                if number_elem:
-                    num_text = number_elem.get_text(strip=True)
-                    if num_text.isdigit():
-                        shirt_number = int(num_text)
+            # --- DORSAL ---
+            number_elem = link.find(class_=lambda x: x and 'number' in x)
+            shirt_number = None
+            if number_elem:
+                num_text = number_elem.get_text(strip=True)
+                if num_text.isdigit(): shirt_number = int(num_text)
 
-                # Posición (MkFootballSquadCard_position)
-                position_elem = card.find(class_=lambda x: x and 'position' in x)
-                position = position_elem.get_text(strip=True) if position_elem else ""
+            scraped_players[norm_name] = {
+                "shirtNumber": shirt_number,
+                "photo": photo_url
+            }
 
-                # Foto de alta calidad dentro de la tarjeta
-                img_elem = card.find('img')
-                photo_url = ""
-                if img_elem:
-                    photo_url = img_elem.get('src') or img_elem.get('data-src', '')
-
-                if player_name:
-                    scraped_players[player_name.lower()] = {
-                        "shirtNumber": shirt_number,
-                        "position": position,
-                        "photo": photo_url
-                    }
-            except Exception as e:
-                print(f"Error procesando tarjeta individual: {e}")
-
-    # 3. Fusionamos la lista oficial de la API con los datos precisos de las tarjetas web
+    # 3. EMPAREJAMIENTO INTELIGENTE (FUZZY MATCHING)
     formatted_squad = []
     
-    if raw_squad:
-        for player in raw_squad:
-            nationality_raw = player.get("nationality", "")
-            iso_code = ""
-            if nationality_raw:
-                try:
-                    country_obj = pycountry.countries.lookup(nationality_raw)
-                    iso_code = country_obj.alpha_2
-                except LookupError:
-                    iso_code = ""
+    for player in raw_squad:
+        api_name = player.get("name", "")
+        norm_api_name = normalize(api_name)
+        api_shirt = player.get("shirtNumber")
+        
+        matched_info = {}
+        
+        # Intento 1: Ver si un nombre está dentro del otro (Ej: "ciss" dentro de "pathe ciss")
+        for web_name, info in scraped_players.items():
+            if web_name in norm_api_name or norm_api_name in web_name:
+                matched_info = info
+                break
+        
+        # Intento 2: Emparejamiento difuso por similitud (Ej: ntekja vs nteka)
+        if not matched_info and scraped_players:
+            matches = difflib.get_close_matches(norm_api_name, scraped_players.keys(), n=1, cutoff=0.4)
+            if matches:
+                matched_info = scraped_players[matches[0]]
 
-            player_name = player.get("name", "")
-            api_shirt = player.get("shirtNumber")
-            
-            # Buscamos coincidencia flexible con los datos extraídos de las tarjetas
-            matched_info = {}
-            for key, info in scraped_players.items():
-                if key in player_name.lower() or player_name.lower() in key:
-                    matched_info = info
-                    break
+        # Juntamos los datos priorizando que haya dorsal
+        final_shirt = api_shirt if (api_shirt is not None and api_shirt > 0) else matched_info.get("shirtNumber")
+        final_photo = matched_info.get("photo", "")
+        
+        nationality_raw = player.get("nationality", "")
+        iso_code = ""
+        if nationality_raw:
+            try:
+                country_obj = pycountry.countries.lookup(nationality_raw)
+                iso_code = country_obj.alpha_2
+            except LookupError:
+                iso_code = ""
 
-            final_shirt = api_shirt if (api_shirt is not None and api_shirt > 0) else matched_info.get("shirtNumber")
-            final_photo = matched_info.get("photo", "")
-            final_position = player.get("position") if player.get("position") != "Unknown" else (matched_info.get("position") or "Unknown")
-
-            formatted_squad.append({
-                "id": player.get("id"),
-                "name": player_name,
-                "position": final_position,
-                "nationality": nationality_raw,
-                "countryCode": iso_code,
-                "shirtNumber": final_shirt,
-                "photo": final_photo
-            })
-    else:
-        # Plan B por si la API fallara
-        for name, info in scraped_players.items():
-            formatted_squad.append({
-                "id": hash(name),
-                "name": name.title(),
-                "position": info.get("position", "Unknown"),
-                "nationality": "Spain",
-                "countryCode": "ES",
-                "shirtNumber": info.get("shirtNumber"),
-                "photo": info.get("photo")
-            })
-
-    final_output = {
-        "club": club_info,
-        "squad": formatted_squad
-    }
+        formatted_squad.append({
+            "id": player.get("id"),
+            "name": api_name,
+            "position": player.get("position", "Unknown"),
+            "nationality": nationality_raw,
+            "countryCode": iso_code,
+            "shirtNumber": final_shirt,
+            "photo": final_photo
+        })
 
     with open("squad.json", "w", encoding="utf-8") as f:
-        json.dump(final_output, f, indent=4, ensure_ascii=False)
+        json.dump({ "club": club_info, "squad": formatted_squad }, f, indent=4, ensure_ascii=False)
         
-    print(f"squad.json generado con éxito. Jugadores con foto: {sum(1 for p in formatted_squad if p['photo'])}")
+    print(f"¡Terminado! Jugadores guardados con FOTO y DORSAL: {sum(1 for p in formatted_squad if p['photo'])}")
 
 except Exception as e:
     print(f"Error crítico en update_squad.py: {e}")
