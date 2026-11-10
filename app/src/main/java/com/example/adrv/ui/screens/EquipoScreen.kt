@@ -309,10 +309,7 @@ fun DayCell(
             .aspectRatio(1f)
             .padding(4.dp)
             .clip(CircleShape)
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                else Color.Transparent
-            )
+            .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
             .clickable(enabled = match != null) { onClick() },
         contentAlignment = Alignment.Center
     ) {
@@ -320,35 +317,33 @@ fun DayCell(
             val isHome = match.homeTeam.contains("Rayo", ignoreCase = true)
             val rivalLogo = if (isHome) match.awayLogoUrl else match.homeLogoUrl
 
-            // Contenedor interno para que el icono superpuesto no se corte por el círculo
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                // Escudo del rival en grande sustituyendo al número del día
-                AsyncImage(
-                    model = rivalLogo,
-                    contentDescription = "Partido",
-                    modifier = Modifier.size(32.dp)
-                )
+            // Detectar si el horario está por confirmar (Suele ser 00:00 o 01:00)
+            val matchTime = formatSpanishTimeOnly(match.dateText)
+            val isTBD = matchTime == "00:00" || matchTime == "01:00"
 
-                // Mini icono superpuesto indicando local/visitante
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                AsyncImage(model = rivalLogo, contentDescription = "Partido", modifier = Modifier.size(32.dp))
+
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .offset(x = (-2).dp, y = (-2).dp)
                         .size(16.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF0F172A)), // Fondo oscuro para contrastar
+                        // Si está por confirmar, el fondo es gris sutil, si no, es oscuro y definido
+                        .background(if (isTBD) Color.Gray.copy(alpha = 0.8f) else Color(0xFF0F172A)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isHome) Icons.Default.Home else Icons.Default.Flight,
-                        contentDescription = if (isHome) "En casa" else "Fuera",
-                        tint = Color.White,
+                        contentDescription = null,
+                        // Icono translúcido si está por confirmar
+                        tint = if (isTBD) Color.White.copy(alpha = 0.6f) else Color.White,
                         modifier = Modifier.size(10.dp)
                     )
                 }
             }
         } else {
-            // Si no hay partido, pintamos el número de forma normal
             Text(
                 text = dayNumber.toString(),
                 fontWeight = FontWeight.Normal,
@@ -503,7 +498,6 @@ fun formatSpanishTimeOnly(dateString: String): String {
 @Composable
 fun ClasificacionView() {
     var standingsData by remember { mutableStateOf<ApiStandingsData?>(null) }
-    // Estado para saber qué equipo se ha seleccionado para ver sus detalles
     var selectedTeam by remember { mutableStateOf<ApiStanding?>(null) }
 
     LaunchedEffect(Unit) {
@@ -519,51 +513,63 @@ fun ClasificacionView() {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 8.dp, vertical = 16.dp), // Menos padding lateral para que quepa todo
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Cabecera de la tabla
+                // Cabecera compacta
                 item {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 8.dp, start = 8.dp, end = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(bottom = 4.dp, start = 8.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Pos", fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.15f))
-                        Text("Equipo", fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.5f))
-                        Text("PJ", fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.1f))
-                        Text("PTS", fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.15f))
+                        Text("Pos", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.weight(0.12f))
+                        Text("Club", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.weight(0.43f))
+                        Text("Pts", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.11f))
+                        Text("P", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
+                        Text("G", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
+                        Text("E", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
+                        Text("P", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
                     }
                 }
 
-                // Filas de los equipos (ahora clicables)
+                // Filas de clasificación
                 items(standingsData!!.standings) { team ->
                     val isRayo = team.teamName.contains("Rayo")
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedTeam = team }, // <--- Al hacer clic guardamos el equipo seleccionado
+                            .clickable { selectedTeam = team },
                         colors = CardDefaults.cardColors(
                             containerColor = if (isRayo) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
                         ),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(6.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
+                                .padding(vertical = 8.dp, horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "${team.position}", fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.15f))
+                            Text(text = "${team.position}", fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.12f))
 
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(0.5f)) {
-                                AsyncImage(model = team.crest, contentDescription = null, modifier = Modifier.size(24.dp).padding(end = 8.dp))
-                                Text(text = team.shortName, fontWeight = if (isRayo) FontWeight.Bold else FontWeight.Normal)
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(0.43f)) {
+                                AsyncImage(model = team.crest, contentDescription = null, modifier = Modifier.size(18.dp).padding(end = 4.dp))
+                                Text(
+                                    text = team.shortName,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isRayo) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
 
-                            Text(text = "${team.playedGames}", modifier = Modifier.weight(0.1f))
-                            Text(text = "${team.points}", fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.15f))
+                            Text(text = "${team.points}", fontSize = 12.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center, modifier = Modifier.weight(0.11f))
+                            Text(text = "${team.playedGames}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
+                            Text(text = "${team.won}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
+                            Text(text = "${team.draw}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
+                            Text(text = "${team.lost}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
                         }
                     }
                 }

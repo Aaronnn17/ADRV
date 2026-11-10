@@ -78,25 +78,30 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 fun HoyScreen() {
     var rayoData by remember { mutableStateOf<RayoData?>(null) }
+    var newsData by remember { mutableStateOf<List<com.example.adrv.model.News>?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
 
-    // Acceso a preferencias locales para recordar qué hemos visto ya
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("RayoAlerts", Context.MODE_PRIVATE) }
 
-    // Lista dinámica de novedades
     var dynamicNotifications by remember { mutableStateOf<List<String>>(emptyList()) }
     val unreadCount = dynamicNotifications.size
+
+    // Variable para cargar el historial de novedades y mostrarlo debajo del próximo partido
+    var novedadesHistorial by remember { mutableStateOf<List<String>>(emptyList()) }
 
     val today = LocalDate.now(ZoneId.of("Europe/Madrid"))
 
     LaunchedEffect(Unit) {
+        // Ejecutamos ambas peticiones a la vez
         rayoData = RayoRepository.fetchRayoData()
+        newsData = RayoRepository.fetchNewsData()?.news // Asegúrate de que esta función exista en tu repositorio, o adaptala al nombre real que uses para obtener las noticias
+
+        novedadesHistorial = sharedPrefs.getStringSet("history_alerts", emptySet())?.toList() ?: emptyList()
         isLoading = false
     }
 
-    // Calculamos el próximo partido
     val nextMatch = remember(rayoData) {
         rayoData?.partidos?.firstOrNull { match ->
             try {
@@ -110,35 +115,70 @@ fun HoyScreen() {
         } ?: rayoData?.partidos?.lastOrNull()
     }
 
-    // Efecto para detectar cambios reales cuando llegan los datos
-    LaunchedEffect(rayoData) {
+    // Efecto para detectar cambios reales en TODOS los próximos partidos (no solo en el siguiente)
+    LaunchedEffect(rayoData, newsData) {
         if (rayoData != null) {
             val newAlerts = mutableListOf<String>()
+            val storedAlerts = sharedPrefs.getStringSet("history_alerts", mutableSetOf())?.toMutableList() ?: mutableListOf()
 
-            // 1. Detectar cambios en el próximo partido (ej. fecha/hora confirmada)
-            nextMatch?.let { match ->
-                val savedMatchDate = sharedPrefs.getString("last_match_date_${match.id}", "")
-                // Si la fecha ha cambiado respecto a la guardada y no es un valor por defecto
-                if (savedMatchDate != "" && savedMatchDate != match.dateText) {
-                    newAlerts.add("Horario actualizado: ${match.homeTeam} vs ${match.awayTeam}.")
-                } else if (savedMatchDate == "") {
-                    // Si es un partido nuevo que la app no había registrado
-                    newAlerts.add("Nuevo partido en agenda: Jornada disponible.")
+            // Analizamos los próximos 5 partidos en busca de cambios de fecha/hora
+            val upcomingMatches = rayoData?.partidos?.filter { match ->
+                try {
+                    !ZonedDateTime.parse(match.dateText)
+                        .withZoneSameInstant(ZoneId.of("Europe/Madrid"))
+                        .toLocalDate()
+                        .isBefore(today)
+                } catch (e: Exception) { false }
+            }?.take(5) ?: emptyList()
+
+            upcomingMatches.forEach { match ->
+                val savedMatchDate = sharedPrefs.getString("last_match_date_${match.id}", "") ?: ""
+
+                if (savedMatchDate.isNotEmpty() && savedMatchDate != match.dateText) {
+                    // Ha habido un cambio. Formateamos las horas para ver de qué tipo es.
+                    val oldTime = formatTimeForComparison(savedMatchDate)
+                    val newTime = formatTimeForComparison(match.dateText)
+                    val newDateStr = formatDateForDisplay(match.dateText)
+
+                    val rival = if (match.homeTeam.contains("Rayo", ignoreCase = true)) match.awayTeam else match.homeTeam
+
+                    val alertMsg = if ((oldTime == "00:00" || oldTime == "01:00") && (newTime != "00:00" && newTime != "01:00")) {
+                        "¡Horario Confirmado! El partido contra $rival será el $newDateStr a las $newTime."
+                    } else {
+                        "Cambio de horario: El partido contra $rival se ha movido al $newDateStr a las $newTime."
+                    }
+
+                    newAlerts.add(alertMsg)
+                    storedAlerts.add(0, alertMsg) // Lo añadimos al principio del historial
                 }
+
+                // Actualizamos la fecha guardada en las preferencias
+                sharedPrefs.edit().putString("last_match_date_${match.id}", match.dateText).apply()
             }
 
-            // 2. Detectar noticias nuevas (suponiendo que rayoData tenga un listado de noticias)
-            /*
-            val latestNews = rayoData?.noticias?.firstOrNull()
+            // 2. Detectar noticias nuevas
+            val latestNews = newsData?.firstOrNull()
             if (latestNews != null) {
-                val savedNewsId = sharedPrefs.getString("last_news_id", "")
-                if (savedNewsId != latestNews.id) {
-                    newAlerts.add("Nueva noticia: ${latestNews.titulo}")
-                }
-            }
-            */
+                val savedNewsTitle = sharedPrefs.getString("last_news_title", "") ?: ""
 
-            dynamicNotifications = newAlerts
+                // Comprobamos la propiedad 'title' basándonos en tu News.kt
+                if (savedNewsTitle.isNotEmpty() && savedNewsTitle != latestNews.title) {
+                    val alertMsg = "🗞️ Nueva noticia: ${latestNews.title}"
+                    newAlerts.add(alertMsg)
+                    storedAlerts.add(0, alertMsg)
+                }
+
+                sharedPrefs.edit().putString("last_news_title", latestNews.title).apply()
+            }
+
+            if (newAlerts.isNotEmpty()) {
+                dynamicNotifications = newAlerts
+
+                // Guardamos el historial (máximo 5 novedades para no saturar)
+                val trimmedHistory = storedAlerts.take(5).toSet()
+                sharedPrefs.edit().putStringSet("history_alerts", trimmedHistory).apply()
+                novedadesHistorial = trimmedHistory.toList()
+            }
         }
     }
 
@@ -166,6 +206,53 @@ fun HoyScreen() {
                 }
             } else if (nextMatch != null) {
                 NextMatchCard(match = nextMatch)
+
+                // ==========================================
+                // SECCIÓN DE NOVEDADES
+                // ==========================================
+                if (novedadesHistorial.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Últimas Novedades",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 18.sp,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                        )
+
+                        novedadesHistorial.forEach { novedad ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                                shape = RoundedCornerShape(12.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = RayoRed,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = novedad,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        lineHeight = 18.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             } else {
                 Text("No hay datos de partidos disponibles", color = Color.Gray)
             }
@@ -189,14 +276,7 @@ fun HoyScreen() {
                 confirmButton = {
                     TextButton(onClick = {
                         showNotificationsDialog = false
-
-                        // Guardamos el estado actual para no volver a avisar de lo mismo
-                        sharedPrefs.edit().apply {
-                            nextMatch?.let { putString("last_match_date_${it.id}", it.dateText) }
-                            // latestNews?.let { putString("last_news_id", it.id) }
-                            apply()
-                        }
-                        // Limpiamos la campana
+                        // Limpiamos la campana, pero NO el historial de abajo
                         dynamicNotifications = emptyList()
                     }) {
                         Text(text = "Entendido", color = MaterialTheme.colorScheme.primary)
@@ -206,6 +286,27 @@ fun HoyScreen() {
                 shape = RoundedCornerShape(20.dp)
             )
         }
+    }
+}
+
+// --- Funciones auxiliares para formatear las fechas en las novedades ---
+fun formatTimeForComparison(dateString: String): String {
+    return try {
+        val instant = Instant.parse(dateString)
+        val zonedDateTime = instant.atZone(ZoneId.of("Europe/Madrid"))
+        zonedDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+    } catch (e: Exception) {
+        "--:--"
+    }
+}
+
+fun formatDateForDisplay(dateString: String): String {
+    return try {
+        val instant = Instant.parse(dateString)
+        val zonedDateTime = instant.atZone(ZoneId.of("Europe/Madrid"))
+        zonedDateTime.format(DateTimeFormatter.ofPattern("d 'de' MMMM", Locale("es", "ES")))
+    } catch (e: Exception) {
+        ""
     }
 }
 
