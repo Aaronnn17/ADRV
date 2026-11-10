@@ -1,6 +1,7 @@
 import urllib.request
 import xml.etree.ElementTree as ET
 import json
+import re
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 
@@ -68,6 +69,11 @@ def fetch_and_parse_feed(feed_info):
                 content_elem = item.find("content:encoded", namespaces)
                 if content_elem is not None and content_elem.text:
                     content_html = content_elem.text.strip()
+
+                if not image_url and content_html:
+                    img_match = re.search(r'<img[^>]+src="([^">]+)"', content_html)
+                    if img_match:
+                        image_url = img_match.group(1)
 
                 categories = [cat.text.strip() for cat in item.findall("category") if cat.text]
 
