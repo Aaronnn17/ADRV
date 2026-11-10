@@ -15,7 +15,7 @@
             "nationality": "Indonesia",
             "countryCode": "ID",
             "shirtNumber": 25,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 46245,
@@ -23,7 +23,7 @@
             "position": "Goalkeeper",
             "nationality": "Argentina",
             "countryCode": "AR",
-            "shirtNumber": null,
+            "shirtNumber": 13,
             "photo": ""
         },
         {
@@ -42,7 +42,7 @@
             "nationality": "Spain",
             "countryCode": "ES",
             "shirtNumber": 1,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 2071,
@@ -51,7 +51,7 @@
             "nationality": "Italy",
             "countryCode": "IT",
             "shirtNumber": 5,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 2151,
@@ -60,7 +60,7 @@
             "nationality": "Italy",
             "countryCode": "IT",
             "shirtNumber": 3,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 7925,
@@ -69,7 +69,7 @@
             "nationality": "France",
             "countryCode": "FR",
             "shirtNumber": 24,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 8716,
@@ -78,7 +78,7 @@
             "nationality": "Albania",
             "countryCode": "AL",
             "shirtNumber": 20,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 33650,
@@ -87,7 +87,7 @@
             "nationality": "Spain",
             "countryCode": "ES",
             "shirtNumber": 15,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 92048,
@@ -96,7 +96,7 @@
             "nationality": "Spain",
             "countryCode": "ES",
             "shirtNumber": 17,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 114955,
@@ -105,7 +105,7 @@
             "nationality": "Romania",
             "countryCode": "RO",
             "shirtNumber": 2,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 168725,
@@ -113,7 +113,7 @@
             "position": "Defence",
             "nationality": "Netherlands",
             "countryCode": "NL",
-            "shirtNumber": null,
+            "shirtNumber": 33,
             "photo": ""
         },
         {
@@ -123,7 +123,7 @@
             "nationality": "Spain",
             "countryCode": "ES",
             "shirtNumber": 22,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 32109,
@@ -131,7 +131,7 @@
             "position": "Midfield",
             "nationality": "Spain",
             "countryCode": "ES",
-            "shirtNumber": null,
+            "shirtNumber": 23,
             "photo": ""
         },
         {
@@ -141,7 +141,7 @@
             "nationality": "Spain",
             "countryCode": "ES",
             "shirtNumber": 8,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 32228,
@@ -150,7 +150,7 @@
             "nationality": "Spain",
             "countryCode": "ES",
             "shirtNumber": 4,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 37649,
@@ -158,7 +158,7 @@
             "position": "Midfield",
             "nationality": "Senegal",
             "countryCode": "SN",
-            "shirtNumber": null,
+            "shirtNumber": 6,
             "photo": ""
         },
         {
@@ -167,7 +167,7 @@
             "position": "Midfield",
             "nationality": "Angola",
             "countryCode": "AO",
-            "shirtNumber": null,
+            "shirtNumber": 11,
             "photo": ""
         },
         {
@@ -176,7 +176,7 @@
             "position": "Midfield",
             "nationality": "Spain",
             "countryCode": "ES",
-            "shirtNumber": null,
+            "shirtNumber": 36,
             "photo": ""
         },
         {
@@ -185,7 +185,7 @@
             "position": "Offence",
             "nationality": "Spain",
             "countryCode": "ES",
-            "shirtNumber": null,
+            "shirtNumber": 19,
             "photo": ""
         },
         {
@@ -195,7 +195,7 @@
             "nationality": "Spain",
             "countryCode": "ES",
             "shirtNumber": 18,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 33496,
@@ -204,7 +204,7 @@
             "nationality": "Spain",
             "countryCode": "ES",
             "shirtNumber": 7,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 106014,
@@ -213,7 +213,7 @@
             "nationality": "Brazil",
             "countryCode": "BR",
             "shirtNumber": 9,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 115175,
@@ -222,7 +222,7 @@
             "nationality": "Spain",
             "countryCode": "ES",
             "shirtNumber": 10,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 133276,
@@ -231,7 +231,7 @@
             "nationality": "Spain",
             "countryCode": "ES",
             "shirtNumber": 19,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         },
         {
             "id": 187117,
@@ -239,7 +239,7 @@
             "position": "Offence",
             "nationality": "Spain",
             "countryCode": "ES",
-            "shirtNumber": null,
+            "shirtNumber": 21,
             "photo": ""
         },
         {
@@ -249,7 +249,7 @@
             "nationality": "Georgia",
             "countryCode": "GE",
             "shirtNumber": 14,
-            "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            "photo": ""
         }
     ]
 }
