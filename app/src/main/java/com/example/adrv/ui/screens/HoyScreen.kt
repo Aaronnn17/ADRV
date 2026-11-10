@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -76,12 +77,18 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+
 
 @Composable
 fun HoyScreen() {
     var rayoData by remember { mutableStateOf<RayoData?>(null) }
     var newsData by remember { mutableStateOf<List<com.example.adrv.model.News>?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
 
     // VARIABLES PARA CONTROLAR LOS DIÁLOGOS DE NOVEDADES
@@ -97,13 +104,31 @@ fun HoyScreen() {
     var novedadesHistorial by remember { mutableStateOf<List<String>>(emptyList()) }
 
     val today = LocalDate.now(ZoneId.of("Europe/Madrid"))
+    val scope = rememberCoroutineScope()
 
+    // Estado y función para refrescar deslizando hacia abajo
+    val refreshState = rememberPullToRefreshState()
+
+    // Función exclusiva cuando el usuario desliza hacia abajo
+    fun refreshData() {
+        scope.launch {
+            isRefreshing = true
+            rayoData = RayoRepository.fetchRayoData()
+            newsData = RayoRepository.fetchNewsData()?.news
+            novedadesHistorial = sharedPrefs.getStringSet("history_alerts", emptySet())?.toList() ?: emptyList()
+            isRefreshing = false
+        }
+    }
+
+    // Carga inicial limpia sin activar la animación de la flecha superior
     LaunchedEffect(Unit) {
-        rayoData = RayoRepository.fetchRayoData()
-        newsData = RayoRepository.fetchNewsData()?.news
-
-        novedadesHistorial = sharedPrefs.getStringSet("history_alerts", emptySet())?.toList() ?: emptyList()
-        isLoading = false
+        scope.launch {
+            isLoading = true
+            rayoData = RayoRepository.fetchRayoData()
+            newsData = RayoRepository.fetchNewsData()?.news
+            novedadesHistorial = sharedPrefs.getStringSet("history_alerts", emptySet())?.toList() ?: emptyList()
+            isLoading = false
+        }
     }
 
     val nextMatch = remember(rayoData) {
@@ -143,7 +168,6 @@ fun HoyScreen() {
 
                     val rival = if (match.homeTeam.contains("Rayo", ignoreCase = true)) match.awayTeam else match.homeTeam
 
-                    // EL IF CORREGIDO CON LA CONDICIÓN REAL
                     val alertMsg = if ((oldTime == "00:00" || oldTime == "01:00") && (newTime != "00:00" && newTime != "01:00")) {
                         "MATCH|${match.id}|¡Horario Confirmado! El partido contra $rival será el $newDateStr a las $newTime."
                     } else {
@@ -179,120 +203,125 @@ fun HoyScreen() {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            RayoHeader(
-                onProfileClick = { },
-                onNotificationClick = {
-                    if (unreadCount > 0) showNotificationsDialog = true
-                },
-                unreadCount = unreadCount
-            )
+    // CONTENEDOR OFICIAL DE MATERIAL 3 PARA DESLIZAR Y ACTUALIZAR
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { refreshData() },
+        state = refreshState,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                RayoHeader(
+                    onProfileClick = { },
+                    onNotificationClick = {
+                        if (unreadCount > 0) showNotificationsDialog = true
+                    },
+                    unreadCount = unreadCount
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            } else if (nextMatch != null) {
-                NextMatchCard(match = nextMatch)
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                } else if (nextMatch != null) {
+                    NextMatchCard(match = nextMatch)
 
-                if (novedadesHistorial.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(24.dp))
+                    if (novedadesHistorial.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(24.dp))
 
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = "Últimas Novedades",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 18.sp,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-                        )
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "Últimas Novedades",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 18.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                            )
 
-                        novedadesHistorial.forEach { novedad ->
-                            val parts = novedad.split("|", limit = 3)
-                            val type = parts.getOrNull(0) ?: ""
-                            val id = parts.getOrNull(1) ?: ""
-                            val text = parts.getOrNull(2) ?: novedad
+                            novedadesHistorial.forEach { novedad ->
+                                val parts = novedad.split("|", limit = 3)
+                                val type = parts.getOrNull(0) ?: ""
+                                val id = parts.getOrNull(1) ?: ""
+                                val text = parts.getOrNull(2) ?: novedad
 
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        if (type == "NEWS") {
-                                            selectedNewsForDialog = newsData?.find { it.id == id }
-                                        } else if (type == "MATCH") {
-                                            selectedMatchForDialog = rayoData?.partidos?.find { it.id.toString() == id }
-                                        } else {
-                                            // PLAN B: Para las alertas viejas que no tienen el ID oculto
-                                            if (text.contains("noticia", ignoreCase = true)) {
-                                                val titulo = text.substringAfter(":").trim()
-                                                selectedNewsForDialog = newsData?.find { it.title.contains(titulo, ignoreCase = true) }
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            if (type == "NEWS") {
+                                                selectedNewsForDialog = newsData?.find { it.id == id }
+                                            } else if (type == "MATCH") {
+                                                selectedMatchForDialog = rayoData?.partidos?.find { it.id.toString() == id }
+                                            } else {
+                                                if (text.contains("noticia", ignoreCase = true)) {
+                                                    val titulo = text.substringAfter(":").trim()
+                                                    selectedNewsForDialog = newsData?.find { it.title.contains(titulo, ignoreCase = true) }
+                                                }
                                             }
-                                        }
-                                    },
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
-                                shape = RoundedCornerShape(12.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                                 ) {
-                                    Icon(Icons.Default.Star, contentDescription = null, tint = RayoRed, modifier = Modifier.size(20.dp))
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Star, contentDescription = null, tint = RayoRed, modifier = Modifier.size(20.dp))
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    }
                                 }
                             }
                         }
                     }
+                } else {
+                    Text("No hay datos de partidos disponibles", color = Color.Gray)
                 }
-            } else {
-                Text("No hay datos de partidos disponibles", color = Color.Gray)
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-
-        if (showNotificationsDialog) {
-            AlertDialog(
-                onDismissRequest = { showNotificationsDialog = false },
-                title = {
-                    Text(text = "🔔 Novedades ADRV", fontWeight = FontWeight.Bold)
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        dynamicNotifications.forEach { notification ->
-                            val textToShow = notification.split("|", limit = 3).getOrNull(2) ?: notification
-                            Text(text = "• $textToShow")
+            if (showNotificationsDialog) {
+                AlertDialog(
+                    onDismissRequest = { showNotificationsDialog = false },
+                    title = {
+                        Text(text = "🔔 Novedades ADRV", fontWeight = FontWeight.Bold)
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            dynamicNotifications.forEach { notification ->
+                                val textToShow = notification.split("|", limit = 3).getOrNull(2) ?: notification
+                                Text(text = "• $textToShow")
+                            }
                         }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showNotificationsDialog = false
-                        dynamicNotifications = emptyList()
-                    }) {
-                        Text(text = "Entendido", color = MaterialTheme.colorScheme.primary)
-                    }
-                },
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(20.dp)
-            )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showNotificationsDialog = false
+                            dynamicNotifications = emptyList()
+                        }) {
+                            Text(text = "Entendido", color = MaterialTheme.colorScheme.primary)
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(20.dp)
+                )
+            }
         }
     }
 
-    // DIÁLOGOS QUE SE ABREN AL HACER CLIC EN LAS NOVEDADES
-
-    // 1. Abre la Noticia
+    // Diálogos externos al contenedor principal
     if (selectedNewsForDialog != null) {
         androidx.compose.ui.window.Dialog(
             onDismissRequest = { selectedNewsForDialog = null },
@@ -310,7 +339,6 @@ fun HoyScreen() {
         }
     }
 
-    // 2. Abre el Partido
     if (selectedMatchForDialog != null) {
         AlertDialog(
             onDismissRequest = { selectedMatchForDialog = null },
