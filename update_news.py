@@ -1,7 +1,7 @@
 import urllib.request
 import xml.etree.ElementTree as ET
 import json
-import re
+import re # Librería para buscar texto
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 
@@ -12,6 +12,23 @@ FEEDS = [
     {"url": "https://matagigantes.net/feed/", "fuente": "Matagigantes"}
 ]
 
+# --- NUEVA FUNCIÓN SALVAVIDAS ---
+def get_og_image(article_url):
+    """Visita la web real de la noticia y extrae la miniatura oficial (og:image)"""
+    try:
+        req = urllib.request.Request(article_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+        # Ponemos un timeout corto para no ralentizar el script si una web va lenta
+        with urllib.request.urlopen(req, timeout=5) as response:
+            html = response.read().decode('utf-8', errors='ignore')
+            # Busca la etiqueta estándar de imagen de portada
+            match = re.search(r'<meta\s+(?:property|name)=["\']og:image["\']\s+content=["\']([^"\']+)["\']', html, re.IGNORECASE)
+            if match:
+                return match.group(1)
+    except Exception as e:
+        pass
+    return ""
+# --------------------------------
+
 def fetch_and_parse_feed(feed_info):
     print(f"Obteniendo RSS de {feed_info['fuente']}...")
     news_items = []
@@ -21,7 +38,7 @@ def fetch_and_parse_feed(feed_info):
             feed_info["url"], 
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         )
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:
             xml_data = response.read()
     except Exception as e:
         print(f"Error al descargar el RSS de {feed_info['fuente']}: {e}")
@@ -50,16 +67,6 @@ def fetch_and_parse_feed(feed_info):
                 guid_elem = item.find("guid")
                 guid = guid_elem.text.strip() if guid_elem is not None and guid_elem.text else link
                 
-                # Imagen: Busca en enclosure o en media:content (común en WordPress)
-                image_url = ""
-                enclosure = item.find("enclosure")
-                media_content = item.find("media:content", namespaces)
-                
-                if enclosure is not None:
-                    image_url = enclosure.get("url", "")
-                elif media_content is not None:
-                    image_url = media_content.get("url", "")
-
                 description = ""
                 desc_tag = item.find("description")
                 if desc_tag is not None and desc_tag.text:
@@ -69,11 +76,51 @@ def fetch_and_parse_feed(feed_info):
                 content_elem = item.find("content:encoded", namespaces)
                 if content_elem is not None and content_elem.text:
                     content_html = content_elem.text.strip()
+                
+                image_url = ""
+                enclosure = item.find("enclosure")
+                media_content = item.find("media:content", namespaces)
+                media_thumbnail = item.find("media:thumbnail", namespaces)
+                
+                # A) Búsqueda en etiquetas estándar RSS
+                if enclosure is not None:
+                    image_url = enclosure.get("url", "")
+                elif media_content is not None:
+                    image_url = media_content.get("url", "")
+                elif media_thumbnail is not None:
+                    image_url = media_thumbnail.get("url", "")
 
+                # B) Búsqueda en el código HTML del artículo RSS
                 if not image_url and content_html:
-                    img_match = re.search(r'<img[^>]+src="([^">]+)"', content_html)
+                    img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
                     if img_match:
                         image_url = img_match.group(1)
+                
+                if not image_url and description:
+                    img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', description, re.IGNORECASE)
+                    if img_match:
+                        image_url = img_match.group(1)
+
+                # C) EXTRACCIÓN EXTREMA: Si sigue vacía, visitamos el enlace real
+                if not image_url and link:
+                    image_url = get_og_image(link)
+
+                # --- NUEVO BLOQUE: LIMPIEZA EXTREMA DE URLS ---
+                if image_url:
+                    # 1. Descartamos basura (píxeles, GIFs o imágenes rotas conocidas)
+                    if image_url.startswith("data:") or ".gif" in image_url.lower() or image_url.endswith("/0-2.jpg"):
+                        image_url = ""
+                    else:
+                        # 2. Si es una ruta relativa (empieza por / o no tiene http), forzamos la ruta completa
+                        if not image_url.startswith("http"):
+                            # Averiguamos el dominio base cortando la URL original de la fuente
+                            base_url = feed_info["url"].split("/feed")[0]
+                            
+                            # Limpiamos la barra inicial para que no se duplique al juntarlo
+                            if image_url.startswith("/"):
+                                image_url = image_url[1:]
+                                
+                            image_url = f"{base_url}/{image_url}"
 
                 categories = [cat.text.strip() for cat in item.findall("category") if cat.text]
 
@@ -86,7 +133,7 @@ def fetch_and_parse_feed(feed_info):
                     "content": content_html,
                     "categories": categories,
                     "image": image_url,
-                    "fuente": feed_info["fuente"] # <-- Asignamos la fuente aquí
+                    "fuente": feed_info["fuente"]
                 })
     except Exception as e:
          print(f"Error parseando el XML de {feed_info['fuente']}: {e}")
@@ -96,19 +143,17 @@ def fetch_and_parse_feed(feed_info):
 def update_news():
     all_news = []
     
-    # Recolectamos de todas las fuentes
     for feed in FEEDS:
         all_news.extend(fetch_and_parse_feed(feed))
         
-    # Función para ordenar cronológicamente
     def sort_key(item):
         try:
             dt = parsedate_to_datetime(item["published"])
             return dt.timestamp()
         except:
-            return 0 # Si falla la fecha, lo manda al final
+            return 0 
 
-    # Ordenamos de más reciente a más antigua
+    # Ordenamos todas juntas por fecha (de más nueva a más antigua)
     all_news.sort(key=sort_key, reverse=True)
 
     data = {
