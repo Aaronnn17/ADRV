@@ -2,9 +2,11 @@ name: Actualizar Datos de la API
 
 on:
   schedule:
-    # Se ejecuta todos los días a las 02:00 y a las 18:00
-    - cron: "0 2,18 * * *" 
-  workflow_dispatch:
+    # Cada 30 minutos los fines de semana (Sábados y Domingos)
+    - cron: '*/30 * * * 0,6'
+    # Cada 4 horas de Lunes a Viernes (para ahorrar minutos de GitHub)
+    - cron: '0 */4 * * 1-5'
+  workflow_dispatch: # Permite ejecutarlo a mano desde GitHub cuando quieras
 
 jobs:
   update-data:
