@@ -3,6 +3,8 @@ package com.example.adrv.ui.screens
 import androidx.activity.compose.BackHandler // <--- 1. Importa el BackHandler de Compose
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,7 +33,19 @@ fun NoticiasScreen() {
     var selectedArticle by remember { mutableStateOf<News?>(null) }
     val scope = rememberCoroutineScope()
 
-    // 2. Interceptamos el botón atrás nativo si estamos viendo una noticia en detalle
+    // Estado para el filtro actual
+    var selectedSource by remember { mutableStateOf("Todas") }
+    val sources = listOf("Todas", "Oficial", "Unión Rayo", "Bukaneros")
+
+    // Lista filtrada dinámicamente según el botón pulsado
+    val filteredNews = remember(selectedSource, newsList) {
+        if (selectedSource == "Todas") {
+            newsList
+        } else {
+            newsList.filter { it.fuente == selectedSource }
+        }
+    }
+
     BackHandler(enabled = selectedArticle != null) {
         selectedArticle = null
     }
@@ -47,23 +61,44 @@ fun NoticiasScreen() {
     }
 
     if (selectedArticle != null) {
-        NewsDetailScreen(
-            article = selectedArticle!!
-        )
+        NewsDetailScreen(article = selectedArticle!!)
     } else {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
+            // --- FILA DE FILTROS ---
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                sources.forEach { source ->
+                    FilterChip(
+                        selected = (source == selectedSource),
+                        onClick = { selectedSource = source },
+                        label = { Text(source, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(50.dp)
+                    )
+                }
+            }
+
+            // --- CONTENIDO DE NOTICIAS ---
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-            } else if (newsList.isEmpty()) {
+            } else if (filteredNews.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = "No hay noticias disponibles en este momento",
+                        text = "No hay noticias de esta fuente ahora mismo",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp
                     )
@@ -73,7 +108,7 @@ fun NoticiasScreen() {
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(newsList) { article ->
+                    items(filteredNews) { article ->
                         NewsCard(
                             article = article,
                             onClick = { selectedArticle = article }
@@ -90,16 +125,14 @@ fun NewsCard(article: News, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }, // <--- Hacemos la tarjeta interactiva
+            .clickable { onClick() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             // Imagen destacada
             if (!article.image.isNullOrEmpty()) {
                 Box(
@@ -118,22 +151,42 @@ fun NewsCard(article: News, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Categoría
-            if (article.categories.isNotEmpty()) {
+            // Fila con Fuente y Categoría
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Etiqueta de la Fuente
                 Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(50.dp)
+                    color = when(article.fuente) {
+                        "Unión Rayo" -> Color(0xFFF59E0B) // Ámbar para diferenciar
+                        "Bukaneros" -> Color(0xFF1E293B)  // Oscuro
+                        else -> MaterialTheme.colorScheme.primary // Rojo oficial
+                    },
+                    shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(
+                        text = article.fuente.uppercase(),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                }
+
+                // Categoría original
+                if (article.categories.isNotEmpty()) {
+                    Text(
                         text = article.categories.first().uppercase(),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Título
             Text(
@@ -157,7 +210,6 @@ fun NewsCard(article: News, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Fecha elegante y limpia en castellano
             Text(
                 text = formatNewsDate(article.published),
                 fontSize = 11.sp,

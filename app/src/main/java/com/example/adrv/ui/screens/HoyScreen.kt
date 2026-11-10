@@ -1,6 +1,7 @@
 package com.example.adrv.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
@@ -82,21 +84,23 @@ fun HoyScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
 
+    // VARIABLES PARA CONTROLAR LOS DIÁLOGOS DE NOVEDADES
+    var selectedNewsForDialog by remember { mutableStateOf<com.example.adrv.model.News?>(null) }
+    var selectedMatchForDialog by remember { mutableStateOf<com.example.adrv.model.ApiMatch?>(null) }
+
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("RayoAlerts", Context.MODE_PRIVATE) }
 
     var dynamicNotifications by remember { mutableStateOf<List<String>>(emptyList()) }
     val unreadCount = dynamicNotifications.size
 
-    // Variable para cargar el historial de novedades y mostrarlo debajo del próximo partido
     var novedadesHistorial by remember { mutableStateOf<List<String>>(emptyList()) }
 
     val today = LocalDate.now(ZoneId.of("Europe/Madrid"))
 
     LaunchedEffect(Unit) {
-        // Ejecutamos ambas peticiones a la vez
         rayoData = RayoRepository.fetchRayoData()
-        newsData = RayoRepository.fetchNewsData()?.news // Asegúrate de que esta función exista en tu repositorio, o adaptala al nombre real que uses para obtener las noticias
+        newsData = RayoRepository.fetchNewsData()?.news
 
         novedadesHistorial = sharedPrefs.getStringSet("history_alerts", emptySet())?.toList() ?: emptyList()
         isLoading = false
@@ -115,13 +119,11 @@ fun HoyScreen() {
         } ?: rayoData?.partidos?.lastOrNull()
     }
 
-    // Efecto para detectar cambios reales en TODOS los próximos partidos (no solo en el siguiente)
     LaunchedEffect(rayoData, newsData) {
         if (rayoData != null) {
             val newAlerts = mutableListOf<String>()
             val storedAlerts = sharedPrefs.getStringSet("history_alerts", mutableSetOf())?.toMutableList() ?: mutableListOf()
 
-            // Analizamos los próximos 5 partidos en busca de cambios de fecha/hora
             val upcomingMatches = rayoData?.partidos?.filter { match ->
                 try {
                     !ZonedDateTime.parse(match.dateText)
@@ -135,35 +137,32 @@ fun HoyScreen() {
                 val savedMatchDate = sharedPrefs.getString("last_match_date_${match.id}", "") ?: ""
 
                 if (savedMatchDate.isNotEmpty() && savedMatchDate != match.dateText) {
-                    // Ha habido un cambio. Formateamos las horas para ver de qué tipo es.
                     val oldTime = formatTimeForComparison(savedMatchDate)
                     val newTime = formatTimeForComparison(match.dateText)
                     val newDateStr = formatDateForDisplay(match.dateText)
 
                     val rival = if (match.homeTeam.contains("Rayo", ignoreCase = true)) match.awayTeam else match.homeTeam
 
+                    // EL IF CORREGIDO CON LA CONDICIÓN REAL
                     val alertMsg = if ((oldTime == "00:00" || oldTime == "01:00") && (newTime != "00:00" && newTime != "01:00")) {
-                        "¡Horario Confirmado! El partido contra $rival será el $newDateStr a las $newTime."
+                        "MATCH|${match.id}|¡Horario Confirmado! El partido contra $rival será el $newDateStr a las $newTime."
                     } else {
-                        "Cambio de horario: El partido contra $rival se ha movido al $newDateStr a las $newTime."
+                        "MATCH|${match.id}|Cambio de horario: El partido contra $rival se ha movido al $newDateStr a las $newTime."
                     }
 
                     newAlerts.add(alertMsg)
-                    storedAlerts.add(0, alertMsg) // Lo añadimos al principio del historial
+                    storedAlerts.add(0, alertMsg)
                 }
 
-                // Actualizamos la fecha guardada en las preferencias
                 sharedPrefs.edit().putString("last_match_date_${match.id}", match.dateText).apply()
             }
 
-            // 2. Detectar noticias nuevas
             val latestNews = newsData?.firstOrNull()
             if (latestNews != null) {
                 val savedNewsTitle = sharedPrefs.getString("last_news_title", "") ?: ""
 
-                // Comprobamos la propiedad 'title' basándonos en tu News.kt
                 if (savedNewsTitle.isNotEmpty() && savedNewsTitle != latestNews.title) {
-                    val alertMsg = "🗞️ Nueva noticia: ${latestNews.title}"
+                    val alertMsg = "NEWS|${latestNews.id}|🗞️ Nueva noticia: ${latestNews.title}"
                     newAlerts.add(alertMsg)
                     storedAlerts.add(0, alertMsg)
                 }
@@ -173,8 +172,6 @@ fun HoyScreen() {
 
             if (newAlerts.isNotEmpty()) {
                 dynamicNotifications = newAlerts
-
-                // Guardamos el historial (máximo 5 novedades para no saturar)
                 val trimmedHistory = storedAlerts.take(5).toSet()
                 sharedPrefs.edit().putStringSet("history_alerts", trimmedHistory).apply()
                 novedadesHistorial = trimmedHistory.toList()
@@ -207,9 +204,6 @@ fun HoyScreen() {
             } else if (nextMatch != null) {
                 NextMatchCard(match = nextMatch)
 
-                // ==========================================
-                // SECCIÓN DE NOVEDADES
-                // ==========================================
                 if (novedadesHistorial.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -222,10 +216,23 @@ fun HoyScreen() {
                         )
 
                         novedadesHistorial.forEach { novedad ->
+                            val parts = novedad.split("|", limit = 3)
+                            val type = parts.getOrNull(0) ?: ""
+                            val id = parts.getOrNull(1) ?: ""
+                            val text = parts.getOrNull(2) ?: novedad
+
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .padding(vertical = 4.dp)
+                                    .clickable {
+                                        // Abre el diálogo al hacer clic en la tarjeta
+                                        if (type == "NEWS") {
+                                            selectedNewsForDialog = newsData?.find { it.id == id }
+                                        } else if (type == "MATCH") {
+                                            selectedMatchForDialog = rayoData?.partidos?.find { it.id.toString() == id }
+                                        }
+                                    },
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
                                 shape = RoundedCornerShape(12.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -234,20 +241,9 @@ fun HoyScreen() {
                                     modifier = Modifier.padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = null,
-                                        tint = RayoRed,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                    Icon(Icons.Default.Star, contentDescription = null, tint = RayoRed, modifier = Modifier.size(20.dp))
                                     Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        text = novedad,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        lineHeight = 18.sp
-                                    )
+                                    Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                                 }
                             }
                         }
@@ -269,14 +265,14 @@ fun HoyScreen() {
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         dynamicNotifications.forEach { notification ->
-                            Text(text = "• $notification")
+                            val textToShow = notification.split("|", limit = 3).getOrNull(2) ?: notification
+                            Text(text = "• $textToShow")
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = {
                         showNotificationsDialog = false
-                        // Limpiamos la campana, pero NO el historial de abajo
                         dynamicNotifications = emptyList()
                     }) {
                         Text(text = "Entendido", color = MaterialTheme.colorScheme.primary)
@@ -286,6 +282,78 @@ fun HoyScreen() {
                 shape = RoundedCornerShape(20.dp)
             )
         }
+    }
+
+    // DIÁLOGOS QUE SE ABREN AL HACER CLIC EN LAS NOVEDADES
+
+    // 1. Abre la Noticia
+    if (selectedNewsForDialog != null) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { selectedNewsForDialog = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                NewsDetailScreen(article = selectedNewsForDialog!!)
+                IconButton(
+                    onClick = { selectedNewsForDialog = null },
+                    modifier = Modifier.padding(16.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White)
+                }
+            }
+        }
+    }
+
+    // 2. Abre el Partido
+    if (selectedMatchForDialog != null) {
+        AlertDialog(
+            onDismissRequest = { selectedMatchForDialog = null },
+            confirmButton = {
+                TextButton(onClick = { selectedMatchForDialog = null }) {
+                    Text("Cerrar", color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            text = {
+                NextMatchCard(match = selectedMatchForDialog!!)
+            },
+            containerColor = Color.Transparent
+        )
+    }
+
+    // Mostrar la Noticia si hacemos clic
+    if (selectedNewsForDialog != null) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { selectedNewsForDialog = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                // Como es pantalla completa, dibujamos tu NewsDetailScreen y le pasamos la noticia
+                NewsDetailScreen(article = selectedNewsForDialog!!)
+                // Botón flotante para cerrar
+                IconButton(
+                    onClick = { selectedNewsForDialog = null },
+                    modifier = Modifier.padding(16.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White)
+                }
+            }
+        }
+    }
+
+    // Mostrar el Partido si hacemos clic (reutilizamos tu NextMatchCard)
+    if (selectedMatchForDialog != null) {
+        AlertDialog(
+            onDismissRequest = { selectedMatchForDialog = null },
+            confirmButton = {
+                TextButton(onClick = { selectedMatchForDialog = null }) {
+                    Text("Cerrar", color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            text = {
+                NextMatchCard(match = selectedMatchForDialog!!)
+            },
+            containerColor = Color.Transparent // Para que se vea limpia la tarjeta
+        )
     }
 }
 

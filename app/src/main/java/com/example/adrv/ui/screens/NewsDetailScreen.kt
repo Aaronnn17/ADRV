@@ -1,6 +1,7 @@
 package com.example.adrv.ui.screens
 
 import android.text.Html
+import android.webkit.WebView
 import android.widget.TextView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -92,23 +93,31 @@ fun NewsDetailScreen(
             AndroidView(
                 modifier = Modifier.fillMaxWidth(),
                 factory = { context ->
-                    TextView(context).apply {
-                        textSize = 16f
-                        setTextColor(onSurfaceColor)
-                        // Aumentamos el interlineado para una lectura mucho más cómoda y fluida
-                        setLineSpacing(16f, 1.35f)
+                    WebView(context).apply {
+                        settings.javaScriptEnabled = true
+                        settings.loadWithOverviewMode = true
+                        settings.useWideViewPort = false
+                        setBackgroundColor(android.graphics.Color.TRANSPARENT)
                     }
                 },
-                update = { textView ->
-                    // Preprocesamos el HTML para asegurar que los párrafos <p> tengan espacio real entre ellos
-                    val formattedHtml = article.content
-                        .replace("</p>", "</p><br>") // Añade separación visual entre párrafos
-                        .replace("<br>", "<br><br>")
+                update = { webView ->
+                    // Le inyectamos CSS automático para que las imágenes nunca se salgan de la pantalla del móvil
+                    val htmlData = """
+            <html>
+            <head>
+                <style>
+                    body { font-family: sans-serif; padding: 0; margin: 0; color: #333; line-height: 1.6; }
+                    img { max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px; margin-bottom: 10px; }
+                    iframe { max-width: 100%; }
+                </style>
+            </head>
+            <body>
+                ${article.content}
+            </body>
+            </html>
+        """.trimIndent()
 
-                    textView.text = Html.fromHtml(
-                        formattedHtml,
-                        Html.FROM_HTML_MODE_COMPACT or Html.FROM_HTML_SEPARATOR_LINE_BREAK_PARAGRAPH
-                    )
+                    webView.loadDataWithBaseURL(null, htmlData, "text/html", "UTF-8", null)
                 }
             )
         } else if (!article.summary.isNullOrEmpty()) {

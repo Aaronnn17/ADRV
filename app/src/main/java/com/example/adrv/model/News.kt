@@ -14,5 +14,6 @@ data class News(
     val summary: String,
     val content: String,
     val categories: List<String>,
-    val image: String?
+    val image: String?,
+    val fuente: String = "Oficial"
 )
