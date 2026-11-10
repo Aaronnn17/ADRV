@@ -219,7 +219,6 @@ fun HoyScreen() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 RayoHeader(
-                    onProfileClick = { },
                     onNotificationClick = {
                         if (unreadCount > 0) showNotificationsDialog = true
                     },
