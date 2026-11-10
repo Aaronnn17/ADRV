@@ -51,7 +51,18 @@ def fetch_and_parse_feed(feed_info):
         return news_items
 
     try:
-        root = ET.fromstring(xml_data)
+        # --- FIX MATAGIGANTES: Limpiar basura HTML antes del XML ---
+        xml_text = xml_data.decode('utf-8', errors='ignore')
+        
+        # Buscamos dónde empieza realmente el XML o el RSS
+        xml_start = xml_text.find('<?xml')
+        if xml_start == -1:
+            xml_start = xml_text.find('<rss')
+            
+        if xml_start != -1:
+            xml_text = xml_text[xml_start:] # Recortamos todo lo anterior
+            
+        root = ET.fromstring(xml_text)
         channel = root.find("channel")
         namespaces = {
             'content': 'http://purl.org/rss/1.0/modules/content/',
@@ -114,7 +125,7 @@ def fetch_and_parse_feed(feed_info):
 
                 # --- FIX AVIF Y LIMPIEZA DE RUTAS ---
                 if image_url:
-                    if image_url.startswith("data:") or ".gif" in image_url.lower() or image_url.endswith("/0-2.jpg"):
+                    if image_url.startswith("data:") or ".gif" in image_url.lower():
                         image_url = ""
                     else:
                         if not image_url.startswith("http"):
