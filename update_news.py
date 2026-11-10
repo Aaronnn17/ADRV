@@ -105,6 +105,23 @@ def fetch_and_parse_feed(feed_info):
                 if not image_url and link:
                     image_url = get_og_image(link)
 
+                # --- NUEVO BLOQUE: LIMPIEZA EXTREMA DE URLS ---
+                if image_url:
+                    # 1. Descartamos basura (píxeles, GIFs o imágenes rotas conocidas)
+                    if image_url.startswith("data:") or ".gif" in image_url.lower() or image_url.endswith("/0-2.jpg"):
+                        image_url = ""
+                    else:
+                        # 2. Si es una ruta relativa (empieza por / o no tiene http), forzamos la ruta completa
+                        if not image_url.startswith("http"):
+                            # Averiguamos el dominio base cortando la URL original de la fuente
+                            base_url = feed_info["url"].split("/feed")[0]
+                            
+                            # Limpiamos la barra inicial para que no se duplique al juntarlo
+                            if image_url.startswith("/"):
+                                image_url = image_url[1:]
+                                
+                            image_url = f"{base_url}/{image_url}"
+
                 categories = [cat.text.strip() for cat in item.findall("category") if cat.text]
 
                 news_items.append({
