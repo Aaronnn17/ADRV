@@ -225,12 +225,18 @@ fun HoyScreen() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp)
+                                    .clip(RoundedCornerShape(12.dp))
                                     .clickable {
-                                        // Abre el diálogo al hacer clic en la tarjeta
                                         if (type == "NEWS") {
                                             selectedNewsForDialog = newsData?.find { it.id == id }
                                         } else if (type == "MATCH") {
                                             selectedMatchForDialog = rayoData?.partidos?.find { it.id.toString() == id }
+                                        } else {
+                                            // PLAN B: Para las alertas viejas que no tienen el ID oculto
+                                            if (text.contains("noticia", ignoreCase = true)) {
+                                                val titulo = text.substringAfter(":").trim()
+                                                selectedNewsForDialog = newsData?.find { it.title.contains(titulo, ignoreCase = true) }
+                                            }
                                         }
                                     },
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),

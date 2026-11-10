@@ -14,11 +14,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.adrv.model.News
 
 @Composable
@@ -76,12 +79,19 @@ fun NewsDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(shape = RoundedCornerShape(size = 20.dp))
                     .background(Color.DarkGray)
             ) {
                 AsyncImage(
-                    model = article.image,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(article.image)
+                        .crossfade(true)
+                        // Imprescindible para evitar cuelgues con formatos como .avif
+                        .allowHardware(false)
+                        .build(),
                     contentDescription = article.title,
+                    // ContentScale.Crop asegura que la imagen llene la caja sin deformarse
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -106,9 +116,11 @@ fun NewsDetailScreen(
             <html>
             <head>
                 <style>
-                    body { font-family: sans-serif; padding: 0; margin: 0; color: #333; line-height: 1.6; }
+                    /* Cambiamos el color a #E2E8F0 (blanco/gris claro) para modo oscuro */
+                    body { font-family: sans-serif; padding: 0; margin: 0; color: #E2E8F0; line-height: 1.6; }
                     img { max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px; margin-bottom: 10px; }
                     iframe { max-width: 100%; }
+                    a { color: #E60026; } /* Enlaces en rojo Rayo */
                 </style>
             </head>
             <body>
