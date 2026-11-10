@@ -53,9 +53,10 @@
 <p align="center">
   <img src="app/extras/Inicio.png" alt="Pantalla de Inicio" width="300">
   <img src="app/extras/Noticias.png" alt="Pantalla de Noticias" width="300">
-  <img src="app/extras/Equipo - Calendario.png" alt="Pantalla de Noticias" width="300">
-  <img src="app/extras/Equipo - Clasificación.png" alt="Pantalla de Noticias" width="300">
-  <img src="app/extras/Equipo - Plantilla.png" alt="Pantalla de Noticias" width="300">
+  <img src="app/extras/Equipo - Calendario.png" alt="Pantalla de Calendario" width="300">
+  <img src="app/extras/Equipo - Clasificación.png" alt="Pantalla de Clasificación" width="300">
+  <img src="app/extras/Equipo - Plantilla.png" alt="Pantalla de Plantilla" width="300">
+  <img src="app/extras/Abono.png" alt="Pantalla de Abono" width="300">
 </p>
 
 ---
