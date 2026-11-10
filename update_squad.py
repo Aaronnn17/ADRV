@@ -11,7 +11,7 @@ team_url = "https://api.football-data.org/v4/teams/87"
 web_squad_url = "https://www.rayovallecano.es/jugadores"
 
 try:
-    # 1. Obtenemos la base de datos de la API (por si necesitamos posiciones o nacionalidades)
+    # 1. Obtenemos la base de datos oficial (posiciones, nacionalidades, etc.)
     response = requests.get(team_url, headers=headers, timeout=15)
     raw_squad = []
     club_info = {
@@ -35,9 +35,9 @@ try:
         }
         raw_squad = data.get("squad", [])
 
-    # 2. Scraping preciso basado en las clases que hemos visto en tus DevTools
+    # 2. Scraping quirúrgico de la web del Rayo basado en las tarjetas de jugadores
     scraped_players = {}
-    print(f"Extrayendo datos reales de la plantilla desde: {web_squad_url}...")
+    print(f"Extrayendo fotos y dorsales de la web oficial: {web_squad_url}...")
     
     web_headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -47,26 +47,35 @@ try:
     if web_response.status_code == 200:
         soup = BeautifulSoup(web_response.text, 'html.parser')
         
-        # Buscamos exactamente las tarjetas de jugadores que aparecen en tu captura (MkFootballSquadCard)
+        # Localizamos todas las tarjetas de jugadores mediante el aria-label exacto que vimos en las DevTools
         cards = soup.find_all(lambda tag: tag.has_attr('aria-label') and 'Ver detalles de' in tag['aria-label'])
         
         for card in cards:
             try:
-                # Extraer nombre directamente del aria-label (ej: "Ver detalles de Cárdenas" -> "Cárdenas")
+                # Extraer nombre del aria-label (ej. "Ver detalles de Cárdenas" -> "Cárdenas")
                 aria = card.get('aria-label', '')
                 raw_name = aria.replace('Ver detalles de', '').strip()
                 
-                # Extraer la foto de la etiqueta img dentro de la tarjeta
+                # Extraer la foto de alta calidad de la etiqueta img dentro de la tarjeta
                 img_elem = card.find('img')
                 photo_url = ""
                 if img_elem:
                     photo_url = img_elem.get('src') or img_elem.get('data-src', '')
-                
-                # Buscar el dorsal dentro de la tarjeta (si la web lo incluye en algún span o contenedor de texto)
-                card_text = card.get_text(" ", strip=True)
-                import re
-                numbers_found = re.findall(r'\b([1-9]|[1-9][0-9])\b', card_text)
-                shirt_number = int(numbers_found[0]) if numbers_found else None
+                    # Si la URL es relativa, la hacemos absoluta
+                    if photo_url.startswith('/'):
+                        photo_url = f"https://www.rayovallecano.es{photo_url}"
+
+                # Extraer el dorsal buscando en el bloque de texto o contenedores hermanos/superiores de la tarjeta
+                shirt_number = None
+                parent_block = card.find_parent(class_=lambda x: x and 'grid' in x.lower()) or card.parent
+                if parent_block:
+                    import re
+                    # Buscamos números de dorsal típicos (1 al 99) que suelan aparecer en el fondo de la tarjeta
+                    text_block = parent_block.get_text(" ", strip=True)
+                    numbers = re.findall(r'\b([1-9]|[1-9][0-9])\b', text_block)
+                    if numbers:
+                        # Cogemos el primer número razonable que aparezca asociado
+                        shirt_number = int(numbers[0])
 
                 if raw_name:
                     scraped_players[raw_name.lower()] = {
@@ -74,9 +83,9 @@ try:
                         "photo": photo_url
                     }
             except Exception as e:
-                print(f"Error procesando una tarjeta: {e}")
+                print(f"Error procesando tarjeta individual: {e}")
 
-    # 3. Fusionamos los datos de la API oficial con lo que hemos extraído de la web
+    # 3. Fusionamos de forma inteligente la información de la API y de la Web Oficial
     formatted_squad = []
     
     if raw_squad:
@@ -93,14 +102,14 @@ try:
             player_name = player.get("name", "")
             api_shirt = player.get("shirtNumber")
             
-            # Buscamos coincidencia con los nombres extraídos de la web
+            # Buscamos si coincide el apellido o nombre con los datos scrapeados de la web
             matched_info = {}
             for key, info in scraped_players.items():
                 if key in player_name.lower() or player_name.lower() in key:
                     matched_info = info
                     break
 
-            final_shirt = api_shirt if api_shirt is not None else matched_info.get("shirtNumber")
+            final_shirt = api_shirt if api_shirt is not None and api_shirt > 0 else matched_info.get("shirtNumber")
             final_photo = matched_info.get("photo", "")
 
             formatted_squad.append({
@@ -113,7 +122,7 @@ try:
                 "photo": final_photo
             })
     else:
-        # Plan B por si la API no respondiera
+        # Plan B por si la API fallara
         for name, info in scraped_players.items():
             formatted_squad.append({
                 "id": hash(name),
@@ -133,7 +142,7 @@ try:
     with open("squad.json", "w", encoding="utf-8") as f:
         json.dump(final_output, f, indent=4, ensure_ascii=False)
         
-    print("squad.json generado a la perfección con la estructura de la web oficial.")
+    print("squad.json actualizado con éxito extrayendo fotos y dorsales por completo.")
 
 except Exception as e:
     print(f"Error crítico en update_squad.py: {e}")
