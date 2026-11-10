@@ -48,9 +48,15 @@
 
 ---
 
-## 🎨 Capturas de pantalla
+## 📸 Capturas de pantalla
 
-*(Próximamente se añadirán capturas de pantalla de la app en funcionamiento)*
+<p align="center">
+  <img src="app/extras/Inicio.png" alt="Pantalla de Inicio" width="300">
+  <img src="app/extras/Noticias.png" alt="Pantalla de Noticias" width="300">
+  <img src="app/extras/Equipo - Calendario.png" alt="Pantalla de Noticias" width="300">
+  <img src="app/extras/Equipo - Clasificación.png" alt="Pantalla de Noticias" width="300">
+  <img src="app/extras/Equipo - Plantilla.png" alt="Pantalla de Noticias" width="300">
+</p>
 
 ---
 
