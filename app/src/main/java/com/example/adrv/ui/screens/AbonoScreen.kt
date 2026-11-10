@@ -51,6 +51,7 @@ import com.example.adrv.data.AbonoStorage
 import com.example.adrv.data.BarcodeAnalyzer
 import com.example.adrv.model.AbonoData
 import com.example.adrv.ui.components.BarcodeImage
+import com.example.adrv.ui.components.bounceClick
 import com.example.adrv.ui.theme.RayoRed
 import android.app.Activity
 import android.view.WindowManager
@@ -178,7 +179,9 @@ fun AbonoScreen(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bounceClick { },
                     colors = ButtonDefaults.buttonColors(containerColor = RayoRed),
                     shape = RoundedCornerShape(12.dp)
                 ) {

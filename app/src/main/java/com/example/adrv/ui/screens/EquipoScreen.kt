@@ -1,9 +1,14 @@
 package com.example.adrv.ui.screens
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,10 +19,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +41,7 @@ import com.example.adrv.model.ApiSquadData
 import com.example.adrv.model.ApiStanding
 import com.example.adrv.model.ApiStandingsData
 import com.example.adrv.model.RayoData
+import com.example.adrv.ui.components.bounceClick
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -42,17 +49,10 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.material.icons.filled.Flight
-import androidx.compose.material.icons.filled.Home
 
 @Composable
 fun EquipoScreen() {
-    var selectedTabIndex by remember { mutableStateOf(0) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Calendario", "Clasificación", "Plantilla")
 
     Column(
@@ -81,7 +81,6 @@ fun EquipoScreen() {
                 tabs.forEachIndexed { index, title ->
                     val selected = selectedTabIndex == index
 
-                    // Transición fluida de color para el fondo
                     val backgroundColor by animateColorAsState(
                         targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                         animationSpec = spring(
@@ -91,7 +90,6 @@ fun EquipoScreen() {
                         label = "tabBg"
                     )
 
-                    // Transición fluida de color para el texto
                     val textColor by animateColorAsState(
                         targetValue = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                         animationSpec = spring(stiffness = Spring.StiffnessMedium),
@@ -109,7 +107,7 @@ fun EquipoScreen() {
                             )
                             .clip(RoundedCornerShape(50.dp))
                             .background(backgroundColor)
-                            .clickable { selectedTabIndex = index }
+                            .bounceClick { selectedTabIndex = index }
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -127,12 +125,20 @@ fun EquipoScreen() {
             }
         }
 
-        // CONTENIDO SEGÚN PESTAÑA
+        // CONTENIDO SEGÚN PESTAÑA CON ANIMACIÓN DE TRANSICIÓN
         Box(modifier = Modifier.fillMaxSize()) {
-            when (selectedTabIndex) {
-                0 -> CalendarioView()
-                1 -> ClasificacionView()
-                2 -> PlantillaView()
+            AnimatedContent(
+                targetState = selectedTabIndex,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(280)) togetherWith fadeOut(animationSpec = tween(280))
+                },
+                label = "TabTransition"
+            ) { targetTab ->
+                when (targetTab) {
+                    0 -> CalendarioView()
+                    1 -> ClasificacionView()
+                    2 -> PlantillaView()
+                }
             }
         }
     }
@@ -166,14 +172,10 @@ fun CalendarioView() {
         } ?: emptyMap()
     }
 
-    // 1. Fecha de hoy por defecto para marcar visualmente la celda
     val today = LocalDate.now(ZoneId.of("Europe/Madrid"))
     var selectedDate by remember { mutableStateOf(today) }
-
-    // 2. Partido explícito seleccionado para el panel de detalles inferior
     var userSelectedMatch by remember { mutableStateOf<ApiMatch?>(null) }
 
-    // Si el usuario no ha pinchado ningún partido, podemos mostrar por defecto el de hoy si lo hay, o dejarlo vacío
     val activeMatch = userSelectedMatch ?: matchesByDate[today]
 
     Column(
@@ -188,7 +190,7 @@ fun CalendarioView() {
                 CircularProgressIndicator()
             }
         } else {
-            // CABECERA MES
+            // CABECERA MES CON NAVEGACIÓN ANIMADA
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -198,12 +200,20 @@ fun CalendarioView() {
                     Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Mes anterior")
                 }
 
-                val nombreMes = currentMonth.month.getDisplayName(TextStyle.FULL, Locale("es", "ES"))
-                Text(
-                    text = "${nombreMes.replaceFirstChar { it.uppercase() }} ${currentMonth.year}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                AnimatedContent(
+                    targetState = currentMonth,
+                    transitionSpec = {
+                        fadeIn(tween(200)) togetherWith fadeOut(tween(200))
+                    },
+                    label = "MonthAnimation"
+                ) { month ->
+                    val mName = month.month.getDisplayName(TextStyle.FULL, Locale("es", "ES"))
+                    Text(
+                        text = "${mName.replaceFirstChar { it.uppercase() }} ${month.year}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
                 IconButton(onClick = { currentMonth = currentMonth.plusMonths(1) }) {
                     Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Mes siguiente")
@@ -244,8 +254,6 @@ fun CalendarioView() {
                             } else {
                                 val date = currentMonth.atDay(currentDay)
                                 val matchOnThisDay = matchesByDate[date]
-
-                                // 3. Se marca en rojo si coincide con la fecha seleccionada (por defecto hoy)
                                 val isSelected = (date == selectedDate)
 
                                 DayCell(
@@ -254,10 +262,7 @@ fun CalendarioView() {
                                     isSelected = isSelected,
                                     modifier = Modifier.weight(1f),
                                     onClick = {
-                                        // Actualizamos siempre el día visual seleccionado
                                         selectedDate = date
-
-                                        // Y si ese día tiene partido, actualizamos el panel de detalles inferior
                                         if (matchOnThisDay != null) {
                                             userSelectedMatch = matchOnThisDay
                                         }
@@ -310,14 +315,13 @@ fun DayCell(
             .padding(4.dp)
             .clip(CircleShape)
             .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
-            .clickable(enabled = match != null) { onClick() },
+            .bounceClick { if (match != null) onClick() },
         contentAlignment = Alignment.Center
     ) {
         if (match != null) {
             val isHome = match.homeTeam.contains("Rayo", ignoreCase = true)
             val rivalLogo = if (isHome) match.awayLogoUrl else match.homeLogoUrl
 
-            // Detectar si el horario está por confirmar (Suele ser 00:00 o 01:00)
             val matchTime = formatSpanishTimeOnly(match.dateText)
             val isTBD = matchTime == "00:00" || matchTime == "01:00"
 
@@ -330,14 +334,12 @@ fun DayCell(
                         .offset(x = (-2).dp, y = (-2).dp)
                         .size(16.dp)
                         .clip(CircleShape)
-                        // Si está por confirmar, el fondo es gris sutil, si no, es oscuro y definido
                         .background(if (isTBD) Color.Gray.copy(alpha = 0.8f) else Color(0xFF0F172A)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isHome) Icons.Default.Home else Icons.Default.Flight,
                         contentDescription = null,
-                        // Icono translúcido si está por confirmar
                         tint = if (isTBD) Color.White.copy(alpha = 0.6f) else Color.White,
                         modifier = Modifier.size(10.dp)
                     )
@@ -493,7 +495,7 @@ fun formatSpanishTimeOnly(dateString: String): String {
 }
 
 // ----------------------------------------------------
-// VISTA 2: CLASIFICACIÓN (Actualizada con detalle al pulsar)
+// VISTA 2: CLASIFICACIÓN
 // ----------------------------------------------------
 @Composable
 fun ClasificacionView() {
@@ -513,10 +515,9 @@ fun ClasificacionView() {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp, vertical = 16.dp), // Menos padding lateral para que quepa todo
+                    .padding(horizontal = 8.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Cabecera compacta
                 item {
                     Row(
                         modifier = Modifier
@@ -534,13 +535,12 @@ fun ClasificacionView() {
                     }
                 }
 
-                // Filas de clasificación
                 items(standingsData!!.standings) { team ->
                     val isRayo = team.teamName.contains("Rayo")
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedTeam = team },
+                            .bounceClick { selectedTeam = team },
                         colors = CardDefaults.cardColors(
                             containerColor = if (isRayo) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
                         ),
@@ -575,7 +575,6 @@ fun ClasificacionView() {
                 }
             }
 
-            // DIÁLOGO / TARJETA FLOTANTE CON LOS DATOS DETALLADOS AL PULSAR UN EQUIPO
             selectedTeam?.let { team ->
                 AlertDialog(
                     onDismissRequest = { selectedTeam = null },
@@ -610,7 +609,6 @@ fun ClasificacionView() {
     }
 }
 
-// Componente auxiliar para las filas del diálogo de detalles
 @Composable
 fun TeamDetailRow(label: String, value: String) {
     Row(
@@ -623,7 +621,7 @@ fun TeamDetailRow(label: String, value: String) {
 }
 
 // ----------------------------------------------------
-// VISTA 3: PLANTILLA (Actualizada con posición y banderas)
+// VISTA 3: PLANTILLA
 // ----------------------------------------------------
 @Composable
 fun PlantillaView() {
@@ -646,7 +644,6 @@ fun PlantillaView() {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Cabecera del Club y Entrenador (Ya centrada y corregida)
             item {
                 Card(
                     modifier = Modifier
@@ -687,7 +684,6 @@ fun PlantillaView() {
                 }
             }
 
-            // Recorremos las posiciones
             playersByPosition.forEach { (position, players) ->
                 item {
                     Text(
@@ -701,7 +697,9 @@ fun PlantillaView() {
 
                 items(players) { player ->
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bounceClick { },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -716,7 +714,6 @@ fun PlantillaView() {
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                // --- CAJITA DE POSICIÓN (Sustituye al dorsal) ---
                                 val (posShort, posColor) = getPositionBadgeInfo(player.position)
                                 Box(
                                     modifier = Modifier
@@ -734,7 +731,6 @@ fun PlantillaView() {
 
                                 Spacer(modifier = Modifier.width(16.dp))
 
-                                // Nombre del jugador
                                 Text(
                                     text = player.name,
                                     fontWeight = FontWeight.Medium,
@@ -746,7 +742,6 @@ fun PlantillaView() {
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            // --- BANDERA VISUAL SEGÚN NACIONALIDAD ---
                             Text(
                                 text = getFlagEmoji(player.countryCode),
                                 fontSize = 22.sp,
@@ -760,22 +755,16 @@ fun PlantillaView() {
     }
 }
 
-// ----------------------------------------------------
-// FUNCIONES AUXILIARES PARA POSICIONES Y BANDERAS
-// ----------------------------------------------------
-
-// Devuelve la abreviatura y el color correspondiente a cada demarcación
 fun getPositionBadgeInfo(position: String): Pair<String, Color> {
     return when (position.lowercase()) {
-        "goalkeeper" -> Pair("PT", Color(0xFFFFB300)) // Amarillo
-        "defence"    -> Pair("DF", Color(0xFF1E88E5)) // Azul
-        "midfield"   -> Pair("MC", Color(0xFF43A047)) // Verde
-        "offence"    -> Pair("DL", Color(0xFFE53935)) // Rojo
+        "goalkeeper" -> Pair("PT", Color(0xFFFFB300))
+        "defence"    -> Pair("DF", Color(0xFF1E88E5))
+        "midfield"   -> Pair("MC", Color(0xFF43A047))
+        "offence"    -> Pair("DL", Color(0xFFE53935))
         else         -> Pair("S/P", Color.Gray)
     }
 }
 
-// Convierte cualquier código ISO de 2 letras (ej: "ID", "ES") en su emoji de bandera matemático
 fun getFlagEmoji(countryCode: String?): String {
     if (countryCode.isNullOrEmpty() || countryCode.length != 2) return "🌍"
 

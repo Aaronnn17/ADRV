@@ -1,6 +1,7 @@
 package com.example.adrv.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,6 +67,7 @@ import com.example.adrv.model.MatchStatus
 import com.example.adrv.model.RayoData
 import com.example.adrv.ui.components.RayoFranjaBackground
 import com.example.adrv.ui.components.RayoHeader
+import com.example.adrv.ui.components.bounceClick
 import com.example.adrv.ui.theme.GoldAccent
 import com.example.adrv.ui.theme.RayoRed
 import kotlinx.coroutines.launch
@@ -255,8 +257,7 @@ fun HoyScreen() {
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable {
+                                        .bounceClick {
                                             if (type == "NEWS") {
                                                 selectedNewsForDialog = newsData?.find { it.id == id }
                                             } else if (type == "MATCH") {
@@ -416,11 +417,13 @@ fun MatchEventRow(event: MatchEvent) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp),
+            .padding(horizontal = 4.dp),
+        shape = RoundedCornerShape(24.dp), // Esquinas más redondeadas y modernas
         colors = CardDefaults.cardColors(
-            containerColor = if (event.isRayoAction) RayoRed.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
         ),
-        shape = RoundedCornerShape(14.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)), // Borde muy sutil
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -531,12 +534,16 @@ fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp)
+            .bounceClick { },
+        shape = RoundedCornerShape(24.dp), // Esquinas más redondeadas y modernas
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)), // Borde muy sutil
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(20.dp),

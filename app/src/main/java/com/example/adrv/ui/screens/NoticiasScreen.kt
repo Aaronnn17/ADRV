@@ -24,6 +24,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.adrv.data.RayoRepository
 import com.example.adrv.model.News
+import com.example.adrv.ui.components.bounceClick
 import kotlinx.coroutines.launch
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -128,7 +129,7 @@ fun NewsCard(article: News, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .bounceClick { onClick() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
