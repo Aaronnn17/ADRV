@@ -2,89 +2,119 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import json
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 
-RSS_URL = "https://www.rayovallecano.es/rss"
+FEEDS = [
+    {"url": "https://www.rayovallecano.es/rss", "fuente": "Oficial"},
+    {"url": "https://unionrayo.es/feed/", "fuente": "Unión Rayo"},
+    {"url": "https://bukaneros.org/feed/", "fuente": "Bukaneros"},
+    {"url": "https://matagigantes.net/feed/", "fuente": "Matagigantes"}
+]
 
-def update_news():
-    print("Obteniendo RSS oficial del Rayo Vallecano...")
+def fetch_and_parse_feed(feed_info):
+    print(f"Obteniendo RSS de {feed_info['fuente']}...")
+    news_items = []
+    
     try:
         req = urllib.request.Request(
-            RSS_URL, 
+            feed_info["url"], 
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         )
         with urllib.request.urlopen(req) as response:
             xml_data = response.read()
     except Exception as e:
-        print(f"Error al descargar el RSS: {e}")
-        return
+        print(f"Error al descargar el RSS de {feed_info['fuente']}: {e}")
+        return news_items
 
-    root = ET.fromstring(xml_data)
-    channel = root.find("channel")
+    try:
+        root = ET.fromstring(xml_data)
+        channel = root.find("channel")
+        
+        namespaces = {
+            'content': 'http://purl.org/rss/1.0/modules/content/',
+            'media': 'http://search.yahoo.com/mrss/'
+        }
+        
+        if channel is not None:
+            for item in channel.findall("item"):
+                title_elem = item.find("title")
+                title = title_elem.text.strip() if title_elem is not None and title_elem.text else ""
+                
+                link_elem = item.find("link")
+                link = link_elem.text.strip() if link_elem is not None and link_elem.text else ""
+                
+                pub_date_elem = item.find("pubDate")
+                pub_date = pub_date_elem.text.strip() if pub_date_elem is not None and pub_date_elem.text else ""
+                
+                guid_elem = item.find("guid")
+                guid = guid_elem.text.strip() if guid_elem is not None and guid_elem.text else link
+                
+                # Imagen: Busca en enclosure o en media:content (común en WordPress)
+                image_url = ""
+                enclosure = item.find("enclosure")
+                media_content = item.find("media:content", namespaces)
+                
+                if enclosure is not None:
+                    image_url = enclosure.get("url", "")
+                elif media_content is not None:
+                    image_url = media_content.get("url", "")
+
+                description = ""
+                desc_tag = item.find("description")
+                if desc_tag is not None and desc_tag.text:
+                    description = desc_tag.text.strip()
+
+                content_html = ""
+                content_elem = item.find("content:encoded", namespaces)
+                if content_elem is not None and content_elem.text:
+                    content_html = content_elem.text.strip()
+
+                categories = [cat.text.strip() for cat in item.findall("category") if cat.text]
+
+                news_items.append({
+                    "id": guid,
+                    "title": title,
+                    "link": link,
+                    "published": pub_date,
+                    "summary": description,
+                    "content": content_html,
+                    "categories": categories,
+                    "image": image_url,
+                    "fuente": feed_info["fuente"] # <-- Asignamos la fuente aquí
+                })
+    except Exception as e:
+         print(f"Error parseando el XML de {feed_info['fuente']}: {e}")
+         
+    return news_items
+
+def update_news():
+    all_news = []
     
-    news_list = []
-    
-    # Namespaces definidos en el XML del RSS para capturar content:encoded
-    namespaces = {
-        'content': 'http://purl.org/rss/1.0/modules/content/'
-    }
-    
-    if channel is not None:
-        # Recorremos TODOS los items sin excepción
-        for item in channel.findall("item"):
-            title_elem = item.find("title")
-            title = title_elem.text.strip() if title_elem is not None and title_elem.text else ""
-            
-            link_elem = item.find("link")
-            link = link_elem.text.strip() if link_elem is not None and link_elem.text else ""
-            
-            pub_date_elem = item.find("pubDate")
-            pub_date = pub_date_elem.text.strip() if pub_date_elem is not None and pub_date_elem.text else ""
-            
-            guid_elem = item.find("guid")
-            guid = guid_elem.text.strip() if guid_elem is not None and guid_elem.text else link
-            
-            # Imagen desde <enclosure>
-            image_url = ""
-            enclosure = item.find("enclosure")
-            if enclosure is not None:
-                image_url = enclosure.get("url", "")
+    # Recolectamos de todas las fuentes
+    for feed in FEEDS:
+        all_news.extend(fetch_and_parse_feed(feed))
+        
+    # Función para ordenar cronológicamente
+    def sort_key(item):
+        try:
+            dt = parsedate_to_datetime(item["published"])
+            return dt.timestamp()
+        except:
+            return 0 # Si falla la fecha, lo manda al final
 
-            # Descripción corta (<description>)
-            description = ""
-            desc_tag = item.find("description")
-            if desc_tag is not None and desc_tag.text:
-                description = desc_tag.text.strip()
-
-            # Contenido completo (<content:encoded>)
-            content_html = ""
-            content_elem = item.find("content:encoded", namespaces)
-            if content_elem is not None and content_elem.text:
-                content_html = content_elem.text.strip()
-
-            # Categorías (puede haber varias)
-            categories = [cat.text.strip() for cat in item.findall("category") if cat.text]
-
-            news_list.append({
-                "id": guid,
-                "title": title,
-                "link": link,
-                "published": pub_date,
-                "summary": description,
-                "content": content_html,
-                "categories": categories,
-                "image": image_url
-            })
+    # Ordenamos de más reciente a más antigua
+    all_news.sort(key=sort_key, reverse=True)
 
     data = {
         "updatedAt": datetime.now().isoformat(),
-        "totalNews": len(news_list),
-        "news": news_list
+        "totalNews": len(all_news),
+        "news": all_news
     }
 
     with open("news.json", "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
     
-    print(f"¡{len(news_list)} noticias extraídas con todos sus datos y guardadas en news.json!")
+    print(f"¡{len(all_news)} noticias extraídas en total y guardadas en news.json!")
 
 if __name__ == "__main__":
     update_news()
