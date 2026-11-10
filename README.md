@@ -1,43 +1,91 @@
-⚡ ADRV - ¡Valentía, coraje y nobleza! ⚡
+<p align="center">
+  <img src="app/src/main/res/drawable/logo_adrv.png" alt="ADRV Logo" width="140">
+</p>
 
-La aplicación definitiva creada exclusivamente por y para los aficionados del Rayo Vallecano. Lleva el Estadio de Vallecas siempre en tu bolsillo.
+<p align="center">
+  <b>La app definitiva para el rayismo</b><br>
+  <sub>Sigue al Rayo Vallecano en tiempo real — Calendario oficial, clasificación, plantilla, noticias y tu Abono Digital en el móvil</sub>
+</p>
 
-📌 ¿Qué es ADRV?
+<p align="center">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white">
+  <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
+  <img alt="UI" src="https://img.shields.io/badge/Material%203-Dynamic-4285F4?logo=materialdesign&logoColor=white">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
+  <a href="https://github.com/Aaronnn17/ADRV/actions">
+    <img alt="CI Status" src="https://github.com/Aaronnn17/ADRV/actions/workflows/android.yml/badge.svg">
+  </a>
+</p>
 
-ADRV es una herramienta digital de nueva generación diseñada con un único propósito: mejorar la experiencia del hincha franjirrojo. Olvídate de carteras pesadas o de preocuparte por perder el carné físico. Con esta aplicación, tendrás acceso directo a los tornos del estadio, el calendario oficial sincronizado en tiempo real, la clasificación de LaLiga y toda la información de la plantilla de la Franja al alcance de tu mano.
+---
 
-✨ Características y Beneficios Principales
+**ADRV** es una aplicación nativa para **Android**, diseñada exclusivamente por y para los aficionados del **Rayo Vallecano**. Construida con tecnologías modernas de Android (Jetpack Compose y Material 3), centraliza todo lo que un rayista necesita en el día a día: desde el acceso rápido a tu carnet digital con código de barras para los tornos de Vallecas, hasta el seguimiento en directo de los partidos, la plantilla oficial y las crónicas de la grada.
 
-💳 1. Pase Digital 2D Oficial (Acceso al Estadio)
+> ⚠️ **Nota:** ADRV es un proyecto independiente sin ánimo de lucro creado por un aficionado. No recopila datos personales sensibles y respeta la privacidad del usuario.
 
-Adiós al plástico: Sube una foto de tu abono físico o escanéalo utilizando Inteligencia Artificial (Google ML Kit).
+---
 
-Extracción inteligente: La app detecta automáticamente tus datos de abonado (nombre, apellidos, puerta, grada, fila, asiento y número de socio).
+## ✨ Características principales
 
-Código de barras infalible: Genera de forma nativa (vía ZXing) un código de barras de alta precisión optimizado para que los lectores láser de los tornos del Estadio de Vallecas lo lean al instante, sin brillos ni problemas de enfoque.
+### 💳 Abono Digital & Acceso al Estadio
+- **Pase 2D Oficial en el móvil:** Genera una réplica digital de alta fidelidad de tu carnet de abonado de la temporada.
+- **Escáner Inteligente con ML Kit:** Sube una foto de tu carnet físico y la app extrae automáticamente tu número de abonado, datos y código de barras.
+- **Listo para el torno:** Código de barras nativo (Code 128) optimizado para una lectura rápida y sin errores en los accesos de Vallecas.
+- **Modo Edición Manual:** Actualiza fácilmente tus datos (puerta, grada, fila, asiento) si lo necesitas mediante un panel de control intuitivo.
 
-📅 2. Calendario Inteligente y Sincronizado
+### ⚽ Partido de Hoy & Calendario
+- **Pantalla de Hoy dinámica:** Toda la información sobre el próximo encuentro del Rayo Vallecano (horario, rival, competición, estadio y árbitro).
+- **Escudos oficiales en tiempo real:** Carga automática de escudos y detalles de la competición.
+- **Automatización en la nube:** Calendario de partidos sincronizado automáticamente a través de scripts en Python y GitHub Actions.
 
-Toda la temporada oficial: Consulta las fechas, horarios (ajustados a la hora local) y estadios de cada encuentro de LaLiga.
+### 📰 Actualidad y Grada (Noticias)
+- **Fuentes oficiales y de afición:** Sigue de cerca la actualidad del club y las crónicas de partidos y viajes.
+- **Galerías y galerías de imágenes:** Visualiza crónicas con soporte de contenido multimedia integrado de forma fluida.
 
-Detalles en profundidad: Al seleccionar cualquier día de partido en el calendario interactivo, despliega un panel inferior completo con los escudos oficiales, marcador en directo o resultado final, árbitro y estadio.
+### 👥 Plantilla & Club
+- **Conoce a los jugadores:** Consulta la plantilla oficial del primer equipo, posiciones, nacionalidades y dorsales.
+- **Clasificación al día:** Sigue de cerca la posición del Rayo en La Liga EA Sports jornada a jornada.
 
-🏆 3. Clasificación y ⚽ 4. Plantilla Oficial
+---
 
-Tabla de LaLiga en tiempo real: Sigue de cerca la posición del Rayo Vallecano, partidos jugados y puntos actualizados al instante.
+## 🎨 Capturas de pantalla
 
-Conoce a los jugadores: Explora la plantilla oficial del primer equipo con sus dorsales y detalles.
+*(Próximamente se añadirán capturas de pantalla de la app en funcionamiento)*
 
-🚀 Tecnologías y Arquitectura
+---
 
-Desarrollo 100% Nativo: Construido en Kotlin utilizando Jetpack Compose para una interfaz moderna, fluida y con diseño tipo Wallet (tarjeta digital estilizada).
+## 🧱 Stack Tecnológico
 
-Visión Artificial e IA: Integración de Google ML Kit (Text Recognition y Barcode Scanning) ejecutándose mediante servicios ligeros para mantener la app rápida y ligera.
+| Área | Tecnología / Librería |
+|------|------------------------|
+| **Lenguaje** | Kotlin |
+| **Interfaz de Usuario** | Jetpack Compose + Material 3 (con paleta inspirada en los colores del club) |
+| **Procesamiento de Imágenes** | Coil 3 |
+| **Lectura de Códigos** | Google ML Kit + ZXing (Barcode Generation) |
+| **Red y Parseo** | OkHttp + Gson + Jsoup |
+| **Automatización** | Python + GitHub Actions (para sincronización de datos y JSONs) |
 
-Sincronización Cloud (GitHub as a Backend): El calendario y los datos de los partidos se actualizan de forma centralizada mediante un repositorio de GitHub, garantizando que todos los usuarios tengan la información siempre al día sin consumir límites de APIs externas.
+---
+
+## ⚙️ ¿Cómo funciona la sincronización de datos?
+
+El repositorio utiliza **GitHub Actions** combinado con scripts de Python (`update_matches.py`, etc.) que consultan de forma automatizada las fuentes de datos oficiales y de la comunidad. Esto genera archivos estructurados (`matches.json`, `news.json`) alojados directamente en la rama principal, permitiendo que la app de Android obtenga información actualizada al instante sin sobrecargar servidores externos.
+
+---
+
+## 📥 Instalación
+
+1. Dirígete a la sección de **[Releases](https://github.com/Aaronnn17/ADRV/releases)** de este repositorio.
+2. Descarga el archivo APK de la última versión disponible (`ADRV.apk`).
+3. Instálalo en tu dispositivo Android (es posible que debas permitir la instalación desde orígenes desconocidos).
+
+---
 
 
+## 🤝 Contribuir
 
-🤝 Contribuir
+¡Las contribuciones, ideas y reportes de errores son totalmente bienvenidos! Si quieres proponer mejoras para la app ADRV, siéntete libre de abrir un issue o enviar un pull request.
 
-¿Eres programador y aficionado del Rayo? ¡Las contribuciones son bienvenidas! Si quieres añadir nuevas funcionalidades (como alertas de goles o estadísticas avanzadas), abre una Pull Request o un Issue en el repositorio.
+## ⚖️ Aviso Legal
+
+ADRV es una aplicación no oficial creada por un aficionado del Rayo Vallecano de Madrid. Los logotipos, nombres de equipos y datos de competiciones pertenecen a sus respectivos propietarios y se utilizan únicamente con fines informativos y recreativos para la comunidad rayista.
