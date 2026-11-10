@@ -36,7 +36,6 @@ def fetch_and_parse_feed(feed_info):
     news_items = []
     
     try:
-        # Usamos cabeceras de navegador real para engañar a servidores estrictos (Matagigantes)
         req = urllib.request.Request(
             feed_info["url"], 
             headers={
@@ -49,6 +48,111 @@ def fetch_and_parse_feed(feed_info):
     except Exception as e:
         print(f"Error al descargar el RSS de {feed_info['fuente']}: {e}")
         return news_items
+
+    try:
+        # FIX MATAGIGANTES: Limpiar basura HTML antes del XML
+        xml_text = xml_data.decode('utf-8', errors='ignore')
+        xml_start = xml_text.find('<?xml')
+        if xml_start == -1:
+            xml_start = xml_text.find('<rss')
+        if xml_start != -1:
+            xml_text = xml_text[xml_start:]
+            
+        root = ET.fromstring(xml_text)
+        channel = root.find("channel")
+        namespaces = {
+            'content': 'http://purl.org/rss/1.0/modules/content/',
+            'media': 'http://search.yahoo.com/mrss/'
+        }
+        
+        if channel is not None:
+            for item in channel.findall("item"):
+                title_elem = item.find("title")
+                title = title_elem.text.strip() if title_elem is not None and title_elem.text else ""
+                
+                link_elem = item.find("link")
+                link = link_elem.text.strip() if link_elem is not None and link_elem.text else ""
+                
+                pub_date_elem = item.find("pubDate")
+                pub_date = pub_date_elem.text.strip() if pub_date_elem is not None and pub_date_elem.text else ""
+                
+                guid_elem = item.find("guid")
+                guid = guid_elem.text.strip() if guid_elem is not None and guid_elem.text else link
+                
+                description = ""
+                desc_tag = item.find("description")
+                if desc_tag is not None and desc_tag.text:
+                    raw_desc = desc_tag.text.strip()
+                    description = re.sub(r'<[^>]+>', '', raw_desc).strip()
+                    description = description.replace("Leer más", "").replace("[&#8230;]", "...").strip()
+
+                content_html = ""
+                content_elem = item.find("content:encoded", namespaces)
+                if content_elem is not None and content_elem.text:
+                    # FIX BUKANEROS: Quitamos loading="lazy" porque rompe las fotos en el visor de Android
+                    content_html = content_elem.text.strip()
+                    content_html = content_html.replace('loading="lazy"', '').replace("loading='lazy'", "")
+                
+                image_url = ""
+                enclosure = item.find("enclosure")
+                media_content = item.find("media:content", namespaces)
+                media_thumbnail = item.find("media:thumbnail", namespaces)
+                
+                if enclosure is not None:
+                    image_url = enclosure.get("url", "")
+                elif media_content is not None:
+                    image_url = media_content.get("url", "")
+                elif media_thumbnail is not None:
+                    image_url = media_thumbnail.get("url", "")
+
+                if not image_url and content_html:
+                    img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                    if img_match:
+                        image_url = img_match.group(1)
+                
+                if not image_url and desc_tag is not None and desc_tag.text:
+                    img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', desc_tag.text, re.IGNORECASE)
+                    if img_match:
+                        image_url = img_match.group(1)
+
+                if not image_url and link:
+                    image_url = get_og_image(link)
+
+                # LIMPIEZA FINAL DE LA IMAGEN
+                if image_url:
+                    # Si es un pixel de rastreo o un gif enano, la borramos
+                    if image_url.startswith("data:") or ".gif" in image_url.lower():
+                        image_url = ""
+                    else:
+                        # Arreglamos rutas relativas
+                        if not image_url.startswith("http"):
+                            base_url = feed_info["url"].split("/feed")[0]
+                            if image_url.startswith("/"):
+                                image_url = image_url[1:]
+                            image_url = f"{base_url}/{image_url}"
+                        
+                        # Si es un AVIF, usamos el proxy para garantizar compatibilidad
+                        if ".avif" in image_url.lower():
+                            clean_url = image_url.replace("https://", "").replace("http://", "")
+                            image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
+
+                categories = [cat.text.strip() for cat in item.findall("category") if cat.text]
+
+                news_items.append({
+                    "id": guid,
+                    "title": title,
+                    "link": link,
+                    "published": pub_date,
+                    "summary": description,
+                    "content": content_html,
+                    "categories": categories,
+                    "image": image_url,
+                    "fuente": feed_info["fuente"]
+                })
+    except Exception as e:
+         print(f"Error parseando el XML de {feed_info['fuente']}: {e}")
+         
+    return news_items
 
     try:
         # --- FIX MATAGIGANTES: Limpiar basura HTML antes del XML ---
