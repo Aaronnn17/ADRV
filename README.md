@@ -13,7 +13,7 @@
   <img alt="UI" src="https://img.shields.io/badge/Material%203-Dynamic-4285F4?logo=materialdesign&logoColor=white">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
   <a href="https://github.com/Aaronnn17/ADRV/actions">
-  <img alt="CI Status" src="https://github.com/Aaronnn17/ADRV/actions/workflows/android.yml/badge.svg">
+  <img alt="CI Status" src="https://github.com/Aaronnn17/ADRV/actions/workflows/update.yml/badge.svg">
   </a>
 </p>
 
