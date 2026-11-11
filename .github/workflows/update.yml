@@ -20,9 +20,11 @@ jobs:
         with:
           python-version: '3.x'
 
-      # INSTALAMOS TODAS LAS LIBRERÍAS NECESARIAS DE UNA SOLA VEZ
+     # INSTALAMOS LAS LIBRERÍAS Y EL NAVEGADOR CHROMIUM REAL
       - name: Instalar dependencias de Python
-        run: pip install requests pycountry beautifulsoup4 cloudscraper
+        run: |
+          pip install requests pycountry beautifulsoup4 cloudscraper playwright
+          playwright install chromium --with-deps
 
       - name: Ejecutar script de Calendario
         env:
