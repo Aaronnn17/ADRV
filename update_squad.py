@@ -56,30 +56,37 @@ try:
             raw_name = link['aria-label'].replace('Ver detalles de', '').strip()
             norm_name = normalize(raw_name)
             
-            # --- FOTO: ESQUIVAR EL BASE64 ---
+            # --- FOTO: CAZANDO statics-maker ---
             photo_url = ""
-            # Next.js a veces esconde la foto real en un <noscript>
+            
+            # 1. Primero miramos si está encriptada dentro de un <noscript> de Next.js
             noscript = link.find('noscript')
             if noscript:
                 img = noscript.find('img')
-                if img and img.get('src'): photo_url = img.get('src')
+                if img and img.get('src') and 'statics-maker' in img.get('src'): 
+                    photo_url = img.get('src')
             
-            # Si no, miramos en srcset (donde están las verdaderas)
+            # 2. Si no, revisamos todas las imágenes dentro de la tarjeta
             if not photo_url:
-                img = link.find('img')
-                if img:
-                    if img.get('srcset'):
+                imgs = link.find_all('img')
+                for img in imgs:
+                    # Comprobamos el srcset (donde suelen estar las de alta calidad)
+                    if img.get('srcset') and 'statics-maker' in img.get('srcset'):
                         photo_url = img.get('srcset').split(',')[0].strip().split(' ')[0]
-                    elif img.get('src') and not img.get('src').startswith('data:'):
+                        break
+                    # Si no, comprobamos el src normal
+                    elif img.get('src') and 'statics-maker' in img.get('src'):
                         photo_url = img.get('src')
+                        break
             
-            # Limpiar URL encriptada de Next.js (_next/image?url=...)
+            # Limpiar URL encriptada de Next.js (_next/image?url=...) si la tuviera
             if '/_next/image?url=' in photo_url:
                 parsed_url = urllib.parse.urlparse(photo_url)
                 qs = urllib.parse.parse_qs(parsed_url.query)
                 if 'url' in qs:
                     photo_url = qs['url'][0]
 
+            # Por si acaso la página devuelve una ruta relativa (aunque statics-maker suele ser absoluta)
             if photo_url.startswith('/'):
                 photo_url = f"https://www.rayovallecano.es{photo_url}"
 
