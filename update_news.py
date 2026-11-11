@@ -4,16 +4,15 @@ import re
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 import cloudscraper
+from bs4 import BeautifulSoup # Aprovechamos que ya lo instalaste en update.yml
 
 FEEDS = [
     {"url": "https://www.rayovallecano.es/rss", "fuente": "Oficial"},
-    # Usamos AllOrigins como túnel para evitar el bloqueo de IP de Cloudflare
-    {"url": "https://api.allorigins.win/raw?url=https://unionrayo.es/feed/", "fuente": "Unión Rayo"},
     {"url": "https://bukaneros.org/feed/", "fuente": "Bukaneros"},
     {"url": "https://matagigantes.net/feed/", "fuente": "Matagigantes"}
+    # Unión Rayo lo sacamos de aquí para usar su API nativa
 ]
 
-# 1. Creamos el "navegador fantasma" para esquivar a Cloudflare
 scraper = cloudscraper.create_scraper(browser={
     'browser': 'chrome',
     'platform': 'windows',
@@ -21,42 +20,97 @@ scraper = cloudscraper.create_scraper(browser={
 })
 
 def get_og_image(article_url):
-    """Visita la web real con el scraper para evitar bloqueos del Captcha"""
     try:
         response = scraper.get(article_url, timeout=10)
         if response.status_code == 200:
-            html = response.text
-            match = re.search(r'<meta\s+(?:property|name)=["\']og:image["\']\s+content=["\']([^"\']+)["\']', html, re.IGNORECASE)
+            match = re.search(r'<meta\s+(?:property|name)=["\']og:image["\']\s+content=["\']([^"\']+)["\']', response.text, re.IGNORECASE)
             if match:
                 return match.group(1)
     except:
         pass
     return ""
 
+def fetch_union_rayo_api():
+    print("Obteniendo noticias de Unión Rayo vía API REST (Bypass RSS)...")
+    news_items = []
+    try:
+        # Endpoint nativo de WordPress que nos da los datos limpios en JSON
+        url = "https://unionrayo.es/wp-json/wp/v2/posts?per_page=15&_embed"
+        response = scraper.get(url, timeout=15)
+        
+        if response.status_code == 200:
+            posts = response.json()
+            for post in posts:
+                # Título limpio
+                raw_title = post.get("title", {}).get("rendered", "")
+                title = BeautifulSoup(raw_title, "html.parser").text
+                
+                link = post.get("link", "")
+                
+                # Fecha: Convertimos de ISO a formato RSS para que tu ordenación funcione
+                raw_date = post.get("date_gmt", "")
+                pub_date = ""
+                if raw_date:
+                    try:
+                        dt = datetime.fromisoformat(raw_date)
+                        pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
+                    except:
+                        pass
+                
+                # Resumen limpio de etiquetas HTML
+                raw_desc = post.get("excerpt", {}).get("rendered", "")
+                description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[...]", "...").replace("[&hellip;]", "...").strip()
+                
+                content_html = post.get("content", {}).get("rendered", "")
+                
+                # Foto principal desde el propio JSON (¡sin raspar la web!)
+                image_url = ""
+                if "_embedded" in post and "wp:featuredmedia" in post["_embedded"]:
+                    media = post["_embedded"]["wp:featuredmedia"][0]
+                    image_url = media.get("source_url", "")
+                
+                if image_url:
+                    image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
+                    if ".avif" in image_url.lower():
+                        clean_url = image_url.replace("https://", "").replace("http://", "")
+                        image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
+
+                news_items.append({
+                    "id": str(post.get("id", link)),
+                    "title": title,
+                    "link": link,
+                    "published": pub_date,
+                    "summary": description,
+                    "content": content_html,
+                    "categories": ["Unión Rayo"],
+                    "image": image_url,
+                    "fuente": "Unión Rayo"
+                })
+    except Exception as e:
+         print(f"Error con la API de Unión Rayo: {e}")
+         
+    return news_items
+
 def fetch_and_parse_feed(feed_info):
     print(f"Obteniendo RSS de {feed_info['fuente']}...")
     news_items = []
     
     try:
-        # Usamos cloudscraper en lugar de urllib
         response = scraper.get(feed_info["url"], timeout=15)
-        response.raise_for_status() # Lanza error si la web devuelve 404 o 500
+        response.raise_for_status()
         xml_data = response.content
     except Exception as e:
         print(f"Error al descargar el RSS de {feed_info['fuente']}: {e}")
         return news_items
 
     try:
-        # --- FIX MATAGIGANTES: Limpiar basura HTML antes del XML ---
         xml_text = xml_data.decode('utf-8', errors='ignore')
-        
-        # Buscamos dónde empieza realmente el XML o el RSS
         xml_start = xml_text.find('<?xml')
         if xml_start == -1:
             xml_start = xml_text.find('<rss')
             
         if xml_start != -1:
-            xml_text = xml_text[xml_start:] # Recortamos todo lo anterior
+            xml_text = xml_text[xml_start:]
             
         root = ET.fromstring(xml_text)
         channel = root.find("channel")
@@ -79,12 +133,10 @@ def fetch_and_parse_feed(feed_info):
                 guid_elem = item.find("guid")
                 guid = guid_elem.text.strip() if guid_elem is not None and guid_elem.text else link
                 
-                # --- FIX BUKANEROS: LIMPIEZA DE ETIQUETAS HTML EN EL RESUMEN ---
                 description = ""
                 desc_tag = item.find("description")
                 if desc_tag is not None and desc_tag.text:
                     raw_desc = desc_tag.text.strip()
-                    # Borramos todo lo que esté entre < > para dejar solo el texto legible
                     description = re.sub(r'<[^>]+>', '', raw_desc).strip()
                     description = description.replace("Leer más", "").replace("[&#8230;]", "...").strip()
 
@@ -111,7 +163,6 @@ def fetch_and_parse_feed(feed_info):
                     if img_match:
                         image_url = img_match.group(1)
                 
-                # Buscamos en el HTML sin limpiar por si estuviera escondida ahí (Bukaneros)
                 if not image_url and desc_tag is not None and desc_tag.text:
                     img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', desc_tag.text, re.IGNORECASE)
                     if img_match:
@@ -120,7 +171,6 @@ def fetch_and_parse_feed(feed_info):
                 if not image_url and link:
                     image_url = get_og_image(link)
 
-                # --- FIX AVIF Y LIMPIEZA DE RUTAS ---
                 if image_url:
                     if image_url.startswith("data:") or ".gif" in image_url.lower():
                         image_url = ""
@@ -131,10 +181,7 @@ def fetch_and_parse_feed(feed_info):
                                 image_url = image_url[1:]
                             image_url = f"{base_url}/{image_url}"
                         
-                        # Truco para Unión Rayo: quitar extensiones tipo .avif o .webp para forzar el JPG
                         image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
-                        
-                        # Si de todos modos es un AVIF, usamos el proxy para garantizar compatibilidad
                         if ".avif" in image_url.lower():
                             clean_url = image_url.replace("https://", "").replace("http://", "")
                             image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
@@ -160,8 +207,12 @@ def fetch_and_parse_feed(feed_info):
 def update_news():
     all_news = []
     
+    # 1. Obtenemos las noticias de los RSS normales
     for feed in FEEDS:
         all_news.extend(fetch_and_parse_feed(feed))
+        
+    # 2. Obtenemos las de Unión Rayo directamente desde su API JSON
+    all_news.extend(fetch_union_rayo_api())
         
     def sort_key(item):
         try:
