@@ -51,105 +51,162 @@ def get_og_image(article_url):
     return ""
 
 def fetch_union_rayo_browser():
-    print("Abriendo navegador Chromium real para extraer Unión Rayo (Noticias + Fotos)...")
+    print("=== EXTRAYENDO UNIÓN RAYO (JETPACK API + CHROMIUM) ===")
     news_items = []
+
+    # 1. INTENTO PRINCIPAL: API Oficial de WordPress.com usando el Site ID 234065985 de Unión Rayo
+    try:
+        jetpack_url = "https://public-api.wordpress.com/rest/v1.1/sites/234065985/posts/?number=15"
+        res = scraper.get(jetpack_url, timeout=15)
+        print(f" -> Estado API Jetpack WordPress.com: HTTP {res.status_code}")
+        
+        if res.status_code == 200:
+            data = res.json()
+            posts = data.get("posts", [])
+            for post in posts:
+                title = BeautifulSoup(post.get("title", ""), "html.parser").text.strip()
+                link = post.get("URL", "")
+                post_id = post.get("ID", "")
+                
+                raw_date = post.get("date", "")
+                pub_date = raw_date
+                if raw_date:
+                    try:
+                        dt = datetime.fromisoformat(raw_date)
+                        pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
+                    except Exception:
+                        pass
+
+                raw_desc = post.get("excerpt", "")
+                description = BeautifulSoup(raw_desc, "html.parser").text
+                description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
+                
+                content_html = post.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
+
+                # Foto directa desde los servidores de WordPress/Jetpack
+                image_url = post.get("featured_image", "")
+                if not image_url and isinstance(post.get("post_thumbnail"), dict):
+                    image_url = post["post_thumbnail"].get("URL", "")
+                if not image_url and isinstance(post.get("attachments"), dict):
+                    for att in post["attachments"].values():
+                        if isinstance(att, dict) and att.get("URL"):
+                            image_url = att["URL"]
+                            break
+                if not image_url and content_html:
+                    img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                    if img_match:
+                        image_url = img_match.group(1)
+
+                image_url = clean_image_url(image_url, "https://unionrayo.es")
+
+                cats_dict = post.get("categories", {})
+                categories = list(cats_dict.keys()) if isinstance(cats_dict, dict) and cats_dict else ["Unión Rayo"]
+
+                news_items.append({
+                    "id": f"https://unionrayo.es/?p={post_id}" if post_id else link,
+                    "title": title,
+                    "link": link,
+                    "published": pub_date,
+                    "summary": description,
+                    "content": content_html,
+                    "categories": categories[:4],
+                    "image": image_url,
+                    "fuente": "Unión Rayo"
+                })
+            if news_items:
+                con_foto = sum(1 for n in news_items if n["image"])
+                print(f" -> ¡ÉXITO vía Jetpack! {len(news_items)} noticias de Unión Rayo ({con_foto} con foto).")
+                return news_items
+    except Exception as e:
+        print(f" -> Aviso en API Jetpack: {e}")
+
+    # 2. PLAN B: Rss2Json + Rescate de fotos con Chromium camuflado
+    try:
+        print(" -> Probando pasarela rss2json + navegador Chromium camuflado...")
+        rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
+        res = scraper.get(rss2json_url, timeout=15)
+        if res.status_code == 200 and res.json().get("status") == "ok":
+            items = res.json().get("items", [])
+            for item in items:
+                title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
+                link = item.get("link", "")
+                raw_date = item.get("pubDate", "")
+                pub_date = raw_date
+                if raw_date:
+                    try:
+                        dt = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S")
+                        pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
+                    except Exception:
+                        pass
+                raw_desc = item.get("description", "")
+                description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[…]", "...").strip()
+                content_html = item.get("content", "").replace('loading="lazy"', '')
+                image_url = item.get("thumbnail", "") or item.get("enclosure", {}).get("link", "")
+
+                news_items.append({
+                    "id": item.get("guid", link),
+                    "title": title,
+                    "link": link,
+                    "published": pub_date,
+                    "summary": description,
+                    "content": content_html,
+                    "categories": item.get("categories", ["Unión Rayo"]),
+                    "image": clean_image_url(image_url, "https://unionrayo.es"),
+                    "fuente": "Unión Rayo"
+                })
+    except Exception as e:
+        print(f" -> Aviso en rss2json: {e}")
+
+    # Si tenemos noticias pero faltan fotos (o si rss2json falló), abrimos Chromium ocultando HeadlessChrome
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
-                args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage"
+                ]
             )
             context = browser.new_context(
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                viewport={"width": 1280, "height": 800}
+                extra_http_headers={
+                    "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": '"Windows"',
+                    "Accept-Language": "es-ES,es;q=0.9"
+                },
+                viewport={"width": 1366, "height": 768}
             )
             page = context.new_page()
+            page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             
-            # 1. Entramos a la portada un instante para pasar el filtro de Cloudflare y ganar la cookie
-            page.goto("https://unionrayo.es/", wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_timeout(3000)
-            
-            # 2. Desde dentro del propio navegador, pedimos el JSON oficial de WordPress con fotos incluidas (_embed)
-            posts = page.evaluate("""async () => {
-                const res = await fetch('https://unionrayo.es/wp-json/wp/v2/posts?per_page=15&_embed');
-                if (!res.ok) return null;
-                return await res.json();
+            page.goto("https://unionrayo.es/", wait_until="domcontentloaded", timeout=25000)
+            page.wait_for_timeout(3500)
+            print(f" -> Título cargado en Chromium: {page.title()}")
+
+            # Mapa de imágenes de la portada de Unión Rayo
+            portada_imgs = page.evaluate("""() => {
+                const map = {};
+                document.querySelectorAll('article, .td-module-container, .post, .jeg_post').forEach(el => {
+                    const a = el.querySelector('a[href*="unionrayo.es"]');
+                    const img = el.querySelector('img');
+                    if (a && img) {
+                        const src = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.currentSrc || img.src || '';
+                        if (src && !src.startsWith('data:')) map[a.href] = src;
+                    }
+                });
+                return map;
             }""")
-            
-            if posts and isinstance(posts, list):
-                for post in posts:
-                    title = BeautifulSoup(post.get("title", {}).get("rendered", ""), "html.parser").text.strip()
-                    link = post.get("link", "")
-                    
-                    raw_date = post.get("date_gmt", "")
-                    pub_date = raw_date
-                    if raw_date:
-                        try:
-                            dt = datetime.fromisoformat(raw_date)
-                            pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
-                        except Exception:
-                            pass
 
-                    raw_desc = post.get("excerpt", {}).get("rendered", "")
-                    description = BeautifulSoup(raw_desc, "html.parser").text
-                    description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
-                    
-                    content_html = post.get("content", {}).get("rendered", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
+            for item in news_items:
+                if not item["image"] and item["link"] in portada_imgs:
+                    item["image"] = clean_image_url(portada_imgs[item["link"]], "https://unionrayo.es")
 
-                    # Extraemos la foto de portada desde todas las ubicaciones posibles del JSON de WordPress
-                    image_url = ""
-                    
-                    # Opción A: Yoast SEO og_image (siempre viene en Unión Rayo)
-                    yoast_imgs = post.get("yoast_head_json", {}).get("og_image", [])
-                    if isinstance(yoast_imgs, list) and len(yoast_imgs) > 0:
-                        image_url = yoast_imgs[0].get("url", "")
-                    
-                    # Opción B: Jetpack o Featured Media embebido
-                    if not image_url:
-                        image_url = post.get("jetpack_featured_media_url", "")
-                    if not image_url and "_embedded" in post and "wp:featuredmedia" in post["_embedded"]:
-                        media = post["_embedded"]["wp:featuredmedia"]
-                        if isinstance(media, list) and len(media) > 0 and isinstance(media[0], dict):
-                            image_url = media[0].get("source_url", "")
-                            
-                    # Opción C: Imagen dentro del cuerpo HTML
-                    if not image_url and content_html:
-                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
-                        if img_match:
-                            image_url = img_match.group(1)
-
-                    image_url = clean_image_url(image_url, "https://unionrayo.es")
-
-                    # Categorías desde términos embebidos
-                    categories = []
-                    if "_embedded" in post and "wp:term" in post["_embedded"]:
-                        for term_group in post["_embedded"]["wp:term"]:
-                            if isinstance(term_group, list):
-                                for term in term_group:
-                                    if isinstance(term, dict) and term.get("name"):
-                                        categories.append(term.get("name"))
-                    if not categories:
-                        categories = ["Unión Rayo"]
-
-                    news_items.append({
-                        "id": f"https://unionrayo.es/?p={post.get('id', '')}" if post.get("id") else link,
-                        "title": title,
-                        "link": link,
-                        "published": pub_date,
-                        "summary": description,
-                        "content": content_html,
-                        "categories": categories[:4],
-                        "image": image_url,
-                        "fuente": "Unión Rayo"
-                    })
-                print(f" -> ¡ÉXITO TOTAL! {len(news_items)} noticias de Unión Rayo con foto extraídas.")
-            else:
-                print(" -> El endpoint wp-json no devolvió una lista válida.")
-                
             browser.close()
     except Exception as e:
-        print(f"Error en navegador Chromium para Unión Rayo: {e}")
-        
+        print(f" -> Aviso en Chromium: {e}")
+
     return news_items
 
 def fetch_and_parse_feed(feed_info):
