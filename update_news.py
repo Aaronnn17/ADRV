@@ -7,7 +7,8 @@ import cloudscraper
 
 FEEDS = [
     {"url": "https://www.rayovallecano.es/rss", "fuente": "Oficial"},
-    {"url": "https://unionrayo.es/feed/", "fuente": "Unión Rayo"},
+    # Usamos AllOrigins como túnel para evitar el bloqueo de IP de Cloudflare
+    {"url": "https://api.allorigins.win/raw?url=https://unionrayo.es/feed/", "fuente": "Unión Rayo"},
     {"url": "https://bukaneros.org/feed/", "fuente": "Bukaneros"},
     {"url": "https://matagigantes.net/feed/", "fuente": "Matagigantes"}
 ]
