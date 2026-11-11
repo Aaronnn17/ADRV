@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+import urllib.parse
 import json
 import re
 from datetime import datetime
@@ -50,162 +51,97 @@ def get_og_image(article_url):
         pass
     return ""
 
+def get_union_rayo_image(article_url, title=""):
+    """Obtiene la foto de portada sin chocar con el Bot Verification de Cloudflare en GitHub"""
+    # 1. Lector r.jina.ai (devuelve el markdown de la noticia con la imagen principal arriba)
+    try:
+        jina_url = f"https://r.jina.ai/{article_url}"
+        res = scraper.get(jina_url, headers={"X-Return-Format": "markdown"}, timeout=10)
+        if res.status_code == 200 and res.text:
+            # Busca la primera imagen de wp-content/uploads dentro del artículo
+            match = re.search(r'\((https?://[^\s\)]+unionrayo\.es/wp-content/uploads/[^\s\)]+)\)', res.text, re.IGNORECASE)
+            if match:
+                img = match.group(1).strip()
+                if "cropped-favicon" not in img and "logo" not in img.lower():
+                    return img
+    except Exception:
+        pass
+
+    # 2. Caché de miniaturas de Bing (nunca bloquea a GitHub Actions)
+    if title:
+        try:
+            q = urllib.parse.quote(f'site:unionrayo.es "{title[:50]}"')
+            bing_url = f"https://www.bing.com/images/search?q={q}&first=1"
+            res = scraper.get(bing_url, timeout=8)
+            if res.status_code == 200:
+                match = re.search(r'murl&quot;:&quot;(https?://[^&]+unionrayo\.es/wp-content/uploads/[^&]+)&quot;', res.text, re.IGNORECASE)
+                if match:
+                    return match.group(1)
+        except Exception:
+            pass
+
+    return ""
+
 def fetch_union_rayo_browser():
-    print("=== EXTRAYENDO UNIÓN RAYO (JETPACK API + CHROMIUM) ===")
+    print("=== EXTRAYENDO UNIÓN RAYO VÍA RSS2JSON ===")
     news_items = []
-
-    # 1. INTENTO PRINCIPAL: API Oficial de WordPress.com usando el Site ID 234065985 de Unión Rayo
     try:
-        jetpack_url = "https://public-api.wordpress.com/rest/v1.1/sites/234065985/posts/?number=15"
-        res = scraper.get(jetpack_url, timeout=15)
-        print(f" -> Estado API Jetpack WordPress.com: HTTP {res.status_code}")
-        
-        if res.status_code == 200:
-            data = res.json()
-            posts = data.get("posts", [])
-            for post in posts:
-                title = BeautifulSoup(post.get("title", ""), "html.parser").text.strip()
-                link = post.get("URL", "")
-                post_id = post.get("ID", "")
-                
-                raw_date = post.get("date", "")
-                pub_date = raw_date
-                if raw_date:
-                    try:
-                        dt = datetime.fromisoformat(raw_date)
-                        pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
-                    except Exception:
-                        pass
-
-                raw_desc = post.get("excerpt", "")
-                description = BeautifulSoup(raw_desc, "html.parser").text
-                description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
-                
-                content_html = post.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
-
-                # Foto directa desde los servidores de WordPress/Jetpack
-                image_url = post.get("featured_image", "")
-                if not image_url and isinstance(post.get("post_thumbnail"), dict):
-                    image_url = post["post_thumbnail"].get("URL", "")
-                if not image_url and isinstance(post.get("attachments"), dict):
-                    for att in post["attachments"].values():
-                        if isinstance(att, dict) and att.get("URL"):
-                            image_url = att["URL"]
-                            break
-                if not image_url and content_html:
-                    img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
-                    if img_match:
-                        image_url = img_match.group(1)
-
-                image_url = clean_image_url(image_url, "https://unionrayo.es")
-
-                cats_dict = post.get("categories", {})
-                categories = list(cats_dict.keys()) if isinstance(cats_dict, dict) and cats_dict else ["Unión Rayo"]
-
-                news_items.append({
-                    "id": f"https://unionrayo.es/?p={post_id}" if post_id else link,
-                    "title": title,
-                    "link": link,
-                    "published": pub_date,
-                    "summary": description,
-                    "content": content_html,
-                    "categories": categories[:4],
-                    "image": image_url,
-                    "fuente": "Unión Rayo"
-                })
-            if news_items:
-                con_foto = sum(1 for n in news_items if n["image"])
-                print(f" -> ¡ÉXITO vía Jetpack! {len(news_items)} noticias de Unión Rayo ({con_foto} con foto).")
-                return news_items
-    except Exception as e:
-        print(f" -> Aviso en API Jetpack: {e}")
-
-    # 2. PLAN B: Rss2Json + Rescate de fotos con Chromium camuflado
-    try:
-        print(" -> Probando pasarela rss2json + navegador Chromium camuflado...")
         rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
         res = scraper.get(rss2json_url, timeout=15)
-        if res.status_code == 200 and res.json().get("status") == "ok":
-            items = res.json().get("items", [])
-            for item in items:
-                title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
-                link = item.get("link", "")
-                raw_date = item.get("pubDate", "")
-                pub_date = raw_date
-                if raw_date:
-                    try:
-                        dt = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S")
-                        pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
-                    except Exception:
-                        pass
-                raw_desc = item.get("description", "")
-                description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[…]", "...").strip()
-                content_html = item.get("content", "").replace('loading="lazy"', '')
-                image_url = item.get("thumbnail", "") or item.get("enclosure", {}).get("link", "")
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("status") == "ok":
+                for item in data.get("items", []):
+                    title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
+                    link = item.get("link", "")
+                    
+                    raw_date = item.get("pubDate", "")
+                    pub_date = raw_date
+                    if raw_date:
+                        try:
+                            dt = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S")
+                            pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
+                        except Exception:
+                            pass
 
-                news_items.append({
-                    "id": item.get("guid", link),
-                    "title": title,
-                    "link": link,
-                    "published": pub_date,
-                    "summary": description,
-                    "content": content_html,
-                    "categories": item.get("categories", ["Unión Rayo"]),
-                    "image": clean_image_url(image_url, "https://unionrayo.es"),
-                    "fuente": "Unión Rayo"
-                })
+                    raw_desc = item.get("description", "")
+                    description = BeautifulSoup(raw_desc, "html.parser").text
+                    description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
+                    content_html = item.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
+
+                    # FIX CRÍTICO: Comprobamos que 'enclosure' sea un dict antes de hacer .get()
+                    enclosure = item.get("enclosure")
+                    enclosure_link = enclosure.get("link", "") if isinstance(enclosure, dict) else ""
+                    image_url = item.get("thumbnail", "") or enclosure_link
+
+                    if not image_url and content_html:
+                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                        if img_match:
+                            image_url = img_match.group(1)
+
+                    if not image_url and link:
+                        image_url = get_union_rayo_image(link, title)
+
+                    image_url = clean_image_url(image_url, "https://unionrayo.es")
+                    categories = item.get("categories")
+                    if not isinstance(categories, list) or not categories:
+                        categories = ["Unión Rayo"]
+
+                    news_items.append({
+                        "id": item.get("guid", link),
+                        "title": title,
+                        "link": link,
+                        "published": pub_date,
+                        "summary": description,
+                        "content": content_html,
+                        "categories": categories,
+                        "image": image_url,
+                        "fuente": "Unión Rayo"
+                    })
+                con_foto = sum(1 for n in news_items if n["image"])
+                print(f" -> ¡ÉXITO! {len(news_items)} noticias de Unión Rayo guardadas ({con_foto} con foto).")
     except Exception as e:
-        print(f" -> Aviso en rss2json: {e}")
-
-    # Si tenemos noticias pero faltan fotos (o si rss2json falló), abrimos Chromium ocultando HeadlessChrome
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                    "--disable-dev-shm-usage"
-                ]
-            )
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                extra_http_headers={
-                    "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": '"Windows"',
-                    "Accept-Language": "es-ES,es;q=0.9"
-                },
-                viewport={"width": 1366, "height": 768}
-            )
-            page = context.new_page()
-            page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            
-            page.goto("https://unionrayo.es/", wait_until="domcontentloaded", timeout=25000)
-            page.wait_for_timeout(3500)
-            print(f" -> Título cargado en Chromium: {page.title()}")
-
-            # Mapa de imágenes de la portada de Unión Rayo
-            portada_imgs = page.evaluate("""() => {
-                const map = {};
-                document.querySelectorAll('article, .td-module-container, .post, .jeg_post').forEach(el => {
-                    const a = el.querySelector('a[href*="unionrayo.es"]');
-                    const img = el.querySelector('img');
-                    if (a && img) {
-                        const src = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.currentSrc || img.src || '';
-                        if (src && !src.startsWith('data:')) map[a.href] = src;
-                    }
-                });
-                return map;
-            }""")
-
-            for item in news_items:
-                if not item["image"] and item["link"] in portada_imgs:
-                    item["image"] = clean_image_url(portada_imgs[item["link"]], "https://unionrayo.es")
-
-            browser.close()
-    except Exception as e:
-        print(f" -> Aviso en Chromium: {e}")
+        print(f" -> Error en extracción de Unión Rayo: {e}")
 
     return news_items
 
