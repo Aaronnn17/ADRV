@@ -16,16 +16,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.12'
 
-    # INSTALAMOS LAS LIBRERÍAS Y EL NAVEGADOR ANTI-CLOUDFLARE CAMOUFOX
+      # INSTALAMOS LAS LIBRERÍAS Y EL NAVEGADOR CHROMIUM REAL (IGUAL QUE EN SQUAD)
       - name: Instalar dependencias de Python
         run: |
-          pip install requests pycountry beautifulsoup4 cloudscraper playwright "camoufox[geoip]"
+          pip install requests pycountry beautifulsoup4 cloudscraper playwright
           playwright install chromium --with-deps
-          python -m camoufox fetch
 
       - name: Ejecutar script de Calendario
         env:
