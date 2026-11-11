@@ -22,6 +22,9 @@ jobs:
 
       # INSTALAMOS TODAS LAS LIBRERÍAS NECESARIAS DE UNA SOLA VEZ
       - name: Instalar dependencias de Python
+        run: pip install requests pycountry beautifulsoup4 cloudscraper
+      
+      - name: Instalar dependencias de Python
         run: pip install requests pycountry beautifulsoup4
 
       - name: Ejecutar script de Calendario
