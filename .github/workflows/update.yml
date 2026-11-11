@@ -20,11 +20,12 @@ jobs:
         with:
           python-version: '3.x'
 
-     # INSTALAMOS LAS LIBRERÍAS Y EL NAVEGADOR CHROMIUM REAL
+    # INSTALAMOS LAS LIBRERÍAS Y EL NAVEGADOR ANTI-CLOUDFLARE CAMOUFOX
       - name: Instalar dependencias de Python
         run: |
-          pip install requests pycountry beautifulsoup4 cloudscraper playwright
+          pip install requests pycountry beautifulsoup4 cloudscraper playwright "camoufox[geoip]"
           playwright install chromium --with-deps
+          python -m camoufox fetch
 
       - name: Ejecutar script de Calendario
         env:
