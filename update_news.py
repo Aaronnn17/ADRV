@@ -1,16 +1,16 @@
 import xml.etree.ElementTree as ET
 import json
 import re
+import urllib.parse
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 import cloudscraper
-from bs4 import BeautifulSoup # Aprovechamos que ya lo instalaste en update.yml
+from bs4 import BeautifulSoup
 
 FEEDS = [
     {"url": "https://www.rayovallecano.es/rss", "fuente": "Oficial"},
     {"url": "https://bukaneros.org/feed/", "fuente": "Bukaneros"},
     {"url": "https://matagigantes.net/feed/", "fuente": "Matagigantes"}
-    # Unión Rayo lo sacamos de aquí para usar su API nativa
 ]
 
 scraper = cloudscraper.create_scraper(browser={
@@ -19,39 +19,37 @@ scraper = cloudscraper.create_scraper(browser={
     'mobile': False
 })
 
-import urllib.parse
-
-def get_og_image_proxied(article_url):
-    """Extrae la foto de portada (og:image) usando un proxy para saltar el bloqueo de IP de GitHub"""
-    encoded_url = urllib.parse.quote(article_url, safe='')
-    proxies = [
-        f"https://api.allorigins.win/raw?url={encoded_url}",
-        f"https://api.codetabs.com/v1/proxy?quest={encoded_url}"
-    ]
-    
-    # Primero intentamos por los túneles proxy y como último recurso directo
-    for target_url in proxies + [article_url]:
-        try:
-            response = scraper.get(target_url, timeout=10)
-            if response.status_code == 200 and response.text:
-                html = response.text
-                # Buscamos meta og:image o twitter:image en cualquier orden de atributos
-                patrones = [
-                    r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)["\']',
-                    r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']'
-                ]
-                for patron in patrones:
-                    match = re.search(patron, html, re.IGNORECASE)
-                    if match:
-                        img = match.group(1).strip()
-                        if img.startswith("http") and " cropped-favicon" not in img:
-                            return img
-        except:
-            continue
-    return ""
-
 def get_og_image(article_url):
-    return get_og_image_proxied(article_url)
+    """Extrae la imagen de portada usando la API de Microlink (esquiva Cloudflare en 1 paso)"""
+    if not article_url:
+        return ""
+    
+    # Intento 1: API de Microlink (especializada en extraer metadatos y og:image sin bloqueos)
+    try:
+        encoded = urllib.parse.quote(article_url, safe='')
+        micro_url = f"https://api.microlink.io/?url={encoded}"
+        res = scraper.get(micro_url, timeout=8)
+        if res.status_code == 200:
+            datos = res.json()
+            img = datos.get("data", {}).get("image", {}).get("url", "")
+            if img and img.startswith("http") and "cropped-favicon" not in img:
+                return img
+    except Exception:
+        pass
+
+    # Intento 2: Petición directa por si es de otra web sin Cloudflare (ej. Oficial / Bukaneros)
+    try:
+        response = scraper.get(article_url, timeout=6)
+        if response.status_code == 200:
+            match = re.search(r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)["\']', response.text, re.IGNORECASE)
+            if not match:
+                match = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']', response.text, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+    except Exception:
+        pass
+
+    return ""
 
 def fetch_union_rayo_api():
     print("Obteniendo noticias de Unión Rayo vía pasarela rss2json...")
@@ -64,57 +62,59 @@ def fetch_union_rayo_api():
             data = response.json()
             if data.get("status") == "ok":
                 for item in data.get("items", []):
-                    title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
-                    link = item.get("link", "")
-                    
-                    raw_date = item.get("pubDate", "")
-                    pub_date = raw_date
-                    if raw_date:
-                        try:
-                            dt = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S")
-                            pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
-                        except:
-                            pass
-                    
-                    raw_desc = item.get("description", "")
-                    description = BeautifulSoup(raw_desc, "html.parser").text
-                    description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
-                    
-                    content_html = item.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
-                    
-                    # 1. Intentamos sacar imagen del RSS si existiera
-                    image_url = item.get("thumbnail", "") or item.get("enclosure", {}).get("link", "")
-                    if not image_url and content_html:
-                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
-                        if img_match:
-                            image_url = img_match.group(1)
-                    
-                    # 2. Si viene vacío (lo habitual en Unión Rayo), la rescatamos con el proxy
-                    if not image_url and link:
-                        image_url = get_og_image_proxied(link)
-                            
-                    if image_url:
-                        image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
-                        if ".avif" in image_url.lower():
-                            clean_url = image_url.replace("https://", "").replace("http://", "")
-                            image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
+                    try:
+                        title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
+                        link = item.get("link", "")
+                        
+                        raw_date = item.get("pubDate", "")
+                        pub_date = raw_date
+                        if raw_date:
+                            try:
+                                dt = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S")
+                                pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
+                            except Exception:
+                                pass
+                        
+                        raw_desc = item.get("description", "")
+                        description = BeautifulSoup(raw_desc, "html.parser").text
+                        description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
+                        
+                        content_html = item.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
+                        
+                        # Buscamos imagen en el RSS o mediante Microlink (protegido para no romper la noticia)
+                        image_url = item.get("thumbnail", "") or item.get("enclosure", {}).get("link", "")
+                        if not image_url and content_html:
+                            img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                            if img_match:
+                                image_url = img_match.group(1)
+                        
+                        if not image_url and link:
+                            image_url = get_og_image(link)
+                                
+                        if image_url:
+                            image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
+                            if ".avif" in image_url.lower():
+                                clean_url = image_url.replace("https://", "").replace("http://", "")
+                                image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
 
-                    categories = item.get("categories", ["Unión Rayo"])
+                        categories = item.get("categories", ["Unión Rayo"])
 
-                    news_items.append({
-                        "id": item.get("guid", link),
-                        "title": title,
-                        "link": link,
-                        "published": pub_date,
-                        "summary": description,
-                        "content": content_html,
-                        "categories": categories,
-                        "image": image_url,
-                        "fuente": "Unión Rayo"
-                    })
-                print(f" -> {len(news_items)} noticias de Unión Rayo rescatadas con foto.")
+                        news_items.append({
+                            "id": item.get("guid", link),
+                            "title": title,
+                            "link": link,
+                            "published": pub_date,
+                            "summary": description,
+                            "content": content_html,
+                            "categories": categories,
+                            "image": image_url,
+                            "fuente": "Unión Rayo"
+                        })
+                    except Exception as item_err:
+                        print(f"Error procesando un artículo de Unión Rayo: {item_err}")
+                print(f" -> {len(news_items)} noticias de Unión Rayo guardadas.")
     except Exception as e:
-        print(f"Error con la pasarela de Unión Rayo: {e}")
+        print(f"Error general en pasarela de Unión Rayo: {e}")
          
     return news_items
 
@@ -234,18 +234,16 @@ def fetch_and_parse_feed(feed_info):
 def update_news():
     all_news = []
     
-    # 1. Obtenemos las noticias de los RSS normales
     for feed in FEEDS:
         all_news.extend(fetch_and_parse_feed(feed))
         
-    # 2. Obtenemos las de Unión Rayo directamente desde su API JSON
     all_news.extend(fetch_union_rayo_api())
         
     def sort_key(item):
         try:
             dt = parsedate_to_datetime(item["published"])
             return dt.timestamp()
-        except:
+        except Exception:
             return 0 
 
     all_news.sort(key=sort_key, reverse=True)
