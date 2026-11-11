@@ -19,22 +19,44 @@ scraper = cloudscraper.create_scraper(browser={
     'mobile': False
 })
 
-def get_og_image(article_url):
-    try:
-        response = scraper.get(article_url, timeout=10)
-        if response.status_code == 200:
-            match = re.search(r'<meta\s+(?:property|name)=["\']og:image["\']\s+content=["\']([^"\']+)["\']', response.text, re.IGNORECASE)
-            if match:
-                return match.group(1)
-    except:
-        pass
+import urllib.parse
+
+def get_og_image_proxied(article_url):
+    """Extrae la foto de portada (og:image) usando un proxy para saltar el bloqueo de IP de GitHub"""
+    encoded_url = urllib.parse.quote(article_url, safe='')
+    proxies = [
+        f"https://api.allorigins.win/raw?url={encoded_url}",
+        f"https://api.codetabs.com/v1/proxy?quest={encoded_url}"
+    ]
+    
+    # Primero intentamos por los túneles proxy y como último recurso directo
+    for target_url in proxies + [article_url]:
+        try:
+            response = scraper.get(target_url, timeout=10)
+            if response.status_code == 200 and response.text:
+                html = response.text
+                # Buscamos meta og:image o twitter:image en cualquier orden de atributos
+                patrones = [
+                    r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)["\']',
+                    r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']'
+                ]
+                for patron in patrones:
+                    match = re.search(patron, html, re.IGNORECASE)
+                    if match:
+                        img = match.group(1).strip()
+                        if img.startswith("http") and " cropped-favicon" not in img:
+                            return img
+        except:
+            continue
     return ""
+
+def get_og_image(article_url):
+    return get_og_image_proxied(article_url)
 
 def fetch_union_rayo_api():
     print("Obteniendo noticias de Unión Rayo vía pasarela rss2json...")
     news_items = []
     try:
-        # Usamos rss2json como puente para saltar el bloqueo de IP de GitHub Actions
         url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
         response = scraper.get(url, timeout=15)
         
@@ -45,7 +67,6 @@ def fetch_union_rayo_api():
                     title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
                     link = item.get("link", "")
                     
-                    # Convertimos la fecha 'YYYY-MM-DD HH:MM:SS' al formato estándar RSS
                     raw_date = item.get("pubDate", "")
                     pub_date = raw_date
                     if raw_date:
@@ -57,20 +78,20 @@ def fetch_union_rayo_api():
                     
                     raw_desc = item.get("description", "")
                     description = BeautifulSoup(raw_desc, "html.parser").text
-                    description = description.replace("Leer más", "").replace("[...]", "...").replace("[…]", "...").strip()
+                    description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
                     
                     content_html = item.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
                     
-                    # Extraemos la imagen del JSON o buscando dentro del HTML del artículo (sin visitar la web)
+                    # 1. Intentamos sacar imagen del RSS si existiera
                     image_url = item.get("thumbnail", "") or item.get("enclosure", {}).get("link", "")
                     if not image_url and content_html:
                         img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
                         if img_match:
                             image_url = img_match.group(1)
-                    if not image_url and raw_desc:
-                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', raw_desc, re.IGNORECASE)
-                        if img_match:
-                            image_url = img_match.group(1)
+                    
+                    # 2. Si viene vacío (lo habitual en Unión Rayo), la rescatamos con el proxy
+                    if not image_url and link:
+                        image_url = get_og_image_proxied(link)
                             
                     if image_url:
                         image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
@@ -91,11 +112,7 @@ def fetch_union_rayo_api():
                         "image": image_url,
                         "fuente": "Unión Rayo"
                     })
-                print(f" -> {len(news_items)} noticias de Unión Rayo rescatadas con éxito.")
-            else:
-                print(f" -> Error en rss2json: {data.get('message')}")
-        else:
-            print(f" -> Fallo HTTP {response.status_code} al conectar con rss2json")
+                print(f" -> {len(news_items)} noticias de Unión Rayo rescatadas con foto.")
     except Exception as e:
         print(f"Error con la pasarela de Unión Rayo: {e}")
          
