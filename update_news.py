@@ -52,55 +52,124 @@ def get_og_image(article_url):
     return ""
 
 def fetch_union_rayo_api():
-    print("Obteniendo noticias de Unión Rayo vía pasarela rss2json...")
+    print("=== INICIANDO EXTRACCIÓN DE UNIÓN RAYO ===")
     news_items = []
-    try:
-        url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
-        response = scraper.get(url, timeout=15)
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("status") == "ok":
-                for item in data.get("items", []):
-                    try:
-                        title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
-                        link = item.get("link", "")
-                        
-                        raw_date = item.get("pubDate", "")
-                        pub_date = raw_date
-                        if raw_date:
-                            try:
-                                dt = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S")
-                                pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
-                            except Exception:
-                                pass
-                        
-                        raw_desc = item.get("description", "")
-                        description = BeautifulSoup(raw_desc, "html.parser").text
-                        description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
-                        
-                        content_html = item.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
-                        
-                        # Buscamos imagen en el RSS o mediante Microlink (protegido para no romper la noticia)
-                        image_url = item.get("thumbnail", "") or item.get("enclosure", {}).get("link", "")
-                        if not image_url and content_html:
-                            img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
-                            if img_match:
-                                image_url = img_match.group(1)
-                        
-                        if not image_url and link:
-                            image_url = get_og_image(link)
-                                
-                        if image_url:
-                            image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
-                            if ".avif" in image_url.lower():
-                                clean_url = image_url.replace("https://", "").replace("http://", "")
-                                image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, application/xml, text/xml, */*"
+    }
 
-                        categories = item.get("categories", ["Unión Rayo"])
+    # --- INTENTO 1: API WordPress con fotos incluidas (1 sola petición vía túneles) ---
+    wp_api_url = "https://unionrayo.es/wp-json/wp/v2/posts?per_page=12&_embed"
+    encoded_wp = urllib.parse.quote(wp_api_url, safe='')
+    
+    tuneles_json = [
+        ("CodeTabs WP-JSON", f"https://api.codetabs.com/v1/proxy?quest={encoded_wp}"),
+        ("AllOrigins WP-JSON", f"https://api.allorigins.win/raw?url={encoded_wp}"),
+        ("Directo WP-JSON", wp_api_url)
+    ]
 
+    for nombre, url in tuneles_json:
+        try:
+            print(f"Probando {nombre}...")
+            res = scraper.get(url, headers=headers, timeout=12)
+            if res.status_code == 200 and res.text.strip().startswith("["):
+                posts = res.json()
+                for post in posts:
+                    title = BeautifulSoup(post.get("title", {}).get("rendered", ""), "html.parser").text.strip()
+                    link = post.get("link", "")
+                    
+                    raw_date = post.get("date_gmt", "")
+                    pub_date = raw_date
+                    if raw_date:
+                        try:
+                            dt = datetime.fromisoformat(raw_date)
+                            pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
+                        except Exception:
+                            pass
+
+                    raw_desc = post.get("excerpt", {}).get("rendered", "")
+                    description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
+                    content_html = post.get("content", {}).get("rendered", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
+
+                    # Foto directa desde el JSON de WordPress
+                    image_url = post.get("jetpack_featured_media_url", "")
+                    if not image_url and "_embedded" in post and "wp:featuredmedia" in post["_embedded"]:
+                        media = post["_embedded"]["wp:featuredmedia"]
+                        if isinstance(media, list) and len(media) > 0:
+                            image_url = media[0].get("source_url", "")
+
+                    if image_url:
+                        image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
+                        if ".avif" in image_url.lower():
+                            clean_url = image_url.replace("https://", "").replace("http://", "")
+                            image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
+
+                    news_items.append({
+                        "id": f"https://unionrayo.es/?p={post.get('id', '')}" if post.get("id") else link,
+                        "title": title,
+                        "link": link,
+                        "published": pub_date,
+                        "summary": description,
+                        "content": content_html,
+                        "categories": ["Unión Rayo"],
+                        "image": image_url,
+                        "fuente": "Unión Rayo"
+                    })
+                if news_items:
+                    print(f" -> ¡ÉXITO con {nombre}! {len(news_items)} noticias con foto extraídas.")
+                    return news_items
+        except Exception as e:
+            print(f" -> Falló {nombre}: {e}")
+
+    # --- INTENTO 2: Pasarelas RSS XML (Si fallan los JSON de arriba) ---
+    rss_url = "https://unionrayo.es/feed/"
+    encoded_rss = urllib.parse.quote(rss_url, safe='')
+    
+    tuneles_rss = [
+        ("CodeTabs RSS", f"https://api.codetabs.com/v1/proxy?quest={encoded_rss}"),
+        ("AllOrigins RSS", f"https://api.allorigins.win/raw?url={encoded_rss}"),
+        ("CorsProxy RSS", f"https://corsproxy.io/?{encoded_rss}")
+    ]
+
+    for nombre, url in tuneles_rss:
+        try:
+            print(f"Probando {nombre}...")
+            res = scraper.get(url, headers=headers, timeout=12)
+            if res.status_code == 200 and ("<rss" in res.text or "<?xml" in res.text):
+                xml_text = res.text
+                xml_start = xml_text.find('<?xml')
+                if xml_start == -1:
+                    xml_start = xml_text.find('<rss')
+                if xml_start != -1:
+                    xml_text = xml_text[xml_start:]
+
+                root = ET.fromstring(xml_text)
+                channel = root.find("channel")
+                namespaces = {'content': 'http://purl.org/rss/1.0/modules/content/'}
+                
+                if channel is not None:
+                    for item in channel.findall("item"):
+                        title = item.find("title").text.strip() if item.find("title") is not None else ""
+                        link = item.find("link").text.strip() if item.find("link") is not None else ""
+                        pub_date = item.find("pubDate").text.strip() if item.find("pubDate") is not None else ""
+                        guid = item.find("guid").text.strip() if item.find("guid") is not None else link
+                        
+                        raw_desc = item.find("description").text.strip() if item.find("description") is not None and item.find("description").text else ""
+                        description = re.sub(r'<[^>]+>', '', raw_desc).replace("Leer más", "").replace("[&#8230;]", "...").strip()
+                        
+                        content_elem = item.find("content:encoded", namespaces)
+                        content_html = content_elem.text.strip() if content_elem is not None and content_elem.text else ""
+                        
+                        # Sin llamadas lentas para no colgar el script
+                        image_url = ""
+                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                        if img_match:
+                            image_url = img_match.group(1)
+
+                        categories = [cat.text.strip() for cat in item.findall("category") if cat.text]
                         news_items.append({
-                            "id": item.get("guid", link),
+                            "id": guid,
                             "title": title,
                             "link": link,
                             "published": pub_date,
@@ -110,12 +179,13 @@ def fetch_union_rayo_api():
                             "image": image_url,
                             "fuente": "Unión Rayo"
                         })
-                    except Exception as item_err:
-                        print(f"Error procesando un artículo de Unión Rayo: {item_err}")
-                print(f" -> {len(news_items)} noticias de Unión Rayo guardadas.")
-    except Exception as e:
-        print(f"Error general en pasarela de Unión Rayo: {e}")
-         
+                    if news_items:
+                        print(f" -> ¡ÉXITO con {nombre}! {len(news_items)} noticias extraídas.")
+                        return news_items
+        except Exception as e:
+            print(f" -> Falló {nombre}: {e}")
+
+    print(" -> Ninguna pasarela de Unión Rayo respondió a tiempo.")
     return news_items
 
 def fetch_and_parse_feed(feed_info):
