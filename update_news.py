@@ -51,47 +51,77 @@ def get_og_image(article_url):
         pass
     return ""
 
-def get_union_rayo_image(article_url, title=""):
-    """Obtiene la foto de portada sin chocar con el Bot Verification de Cloudflare en GitHub"""
-    # 1. Lector r.jina.ai (devuelve el markdown de la noticia con la imagen principal arriba)
+def get_union_rayo_image(article_url):
+    """Extrae el <meta property="og:image"> de Unión Rayo saltando el Bot Verification de GitHub"""
+    if not article_url:
+        return ""
+
+    encoded_url = urllib.parse.quote(article_url, safe='')
+    
+    # Patrón exacto para cazar la URL de wp-content/uploads que me has pasado
+    patron_wp = r'(https?://(?:www\.)?unionrayo\.es/wp-content/uploads/\d{4}/\d{2}/[^"\'\s<>\\]+\.(?:jpg|jpeg|png|webp))'
+
+    # 1. API de previsualización de tarjetas sociales (Microlink - lee exactamente el og:image)
     try:
-        jina_url = f"https://r.jina.ai/{article_url}"
-        res = scraper.get(jina_url, headers={"X-Return-Format": "markdown"}, timeout=10)
+        res = scraper.get(f"https://api.microlink.io/?url={encoded_url}", timeout=10)
+        if res.status_code == 200:
+            img = res.json().get("data", {}).get("image", {}).get("url", "")
+            if img and "wp-content/uploads" in img and "cropped-favicon" not in img:
+                return img
+    except Exception:
+        pass
+
+    # 2. Lector Jina en modo HTML crudo (devuelve el <head> con el meta og:image desde fuera de Azure)
+    try:
+        res = scraper.get(
+            f"https://r.jina.ai/{article_url}",
+            headers={"X-Return-Format": "html", "User-Agent": "facebookexternalhit/1.1"},
+            timeout=10
+        )
         if res.status_code == 200 and res.text:
-            # Busca la primera imagen de wp-content/uploads dentro del artículo
-            match = re.search(r'\((https?://[^\s\)]+unionrayo\.es/wp-content/uploads/[^\s\)]+)\)', res.text, re.IGNORECASE)
-            if match:
-                img = match.group(1).strip()
+            # Buscamos primero el meta og:image exacto que me has pasado
+            og_match = re.search(r'<meta\s+property=["\']og:image(?::secure_url)?["\']\s+content=["\']([^"\']+)["\']', res.text, re.IGNORECASE)
+            if og_match and "cropped-favicon" not in og_match.group(1):
+                return og_match.group(1).strip()
+            # O cualquier imagen subida a wp-content/uploads/YYYY/MM/
+            wp_matches = re.findall(patron_wp, res.text, re.IGNORECASE)
+            for img in wp_matches:
                 if "cropped-favicon" not in img and "logo" not in img.lower():
                     return img
     except Exception:
         pass
 
-    # 2. Caché de miniaturas de Bing (nunca bloquea a GitHub Actions)
-    if title:
-        try:
-            q = urllib.parse.quote(f'site:unionrayo.es "{title[:50]}"')
-            bing_url = f"https://www.bing.com/images/search?q={q}&first=1"
-            res = scraper.get(bing_url, timeout=8)
-            if res.status_code == 200:
-                match = re.search(r'murl&quot;:&quot;(https?://[^&]+unionrayo\.es/wp-content/uploads/[^&]+)&quot;', res.text, re.IGNORECASE)
-                if match:
-                    return match.group(1)
-        except Exception:
-            pass
+    # 3. Endpoint oEmbed nativo de WordPress a través de proxy ligero (AllOrigins JSON)
+    try:
+        oembed_target = f"https://unionrayo.es/wp-json/oembed/1.0/embed?url={encoded_url}"
+        proxy_url = f"https://api.allorigins.win/get?url={urllib.parse.quote(oembed_target, safe='')}"
+        res = scraper.get(proxy_url, timeout=10)
+        if res.status_code == 200:
+            contents = res.json().get("contents", "")
+            if contents:
+                wp_matches = re.findall(patron_wp, contents.replace("\\/", "/"), re.IGNORECASE)
+                for img in wp_matches:
+                    if "cropped-favicon" not in img:
+                        return img
+    except Exception:
+        pass
 
     return ""
 
 def fetch_union_rayo_browser():
-    print("=== EXTRAYENDO UNIÓN RAYO VÍA RSS2JSON ===")
+    print("=== EXTRAYENDO UNIÓN RAYO (NOTICIAS + OG:IMAGE) ===")
     news_items = []
     try:
         rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
         res = scraper.get(rss2json_url, timeout=15)
+        
         if res.status_code == 200:
             data = res.json()
             if data.get("status") == "ok":
-                for item in data.get("items", []):
+                items = data.get("items", [])
+                print(f" -> {len(items)} titulares recibidos desde rss2json. Extrayendo sus og:image...")
+                
+                for item in items:
                     title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
                     link = item.get("link", "")
                     
@@ -109,20 +139,17 @@ def fetch_union_rayo_browser():
                     description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
                     content_html = item.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
 
-                    # FIX CRÍTICO: Comprobamos que 'enclosure' sea un dict antes de hacer .get()
+                    # Evitamos el bug de cuando 'enclosure' viene como lista []
                     enclosure = item.get("enclosure")
                     enclosure_link = enclosure.get("link", "") if isinstance(enclosure, dict) else ""
                     image_url = item.get("thumbnail", "") or enclosure_link
 
-                    if not image_url and content_html:
-                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
-                        if img_match:
-                            image_url = img_match.group(1)
-
+                    # Si el RSS no trae la foto, extraemos el <meta property="og:image">
                     if not image_url and link:
-                        image_url = get_union_rayo_image(link, title)
+                        image_url = get_union_rayo_image(link)
 
                     image_url = clean_image_url(image_url, "https://unionrayo.es")
+                    
                     categories = item.get("categories")
                     if not isinstance(categories, list) or not categories:
                         categories = ["Unión Rayo"]
@@ -138,10 +165,15 @@ def fetch_union_rayo_browser():
                         "image": image_url,
                         "fuente": "Unión Rayo"
                     })
+                
                 con_foto = sum(1 for n in news_items if n["image"])
-                print(f" -> ¡ÉXITO! {len(news_items)} noticias de Unión Rayo guardadas ({con_foto} con foto).")
+                print(f" -> ¡COMPLETADO! {len(news_items)} noticias de Unión Rayo guardadas ({con_foto} con foto og:image).")
+            else:
+                print(f" -> Error devuelto por rss2json: {data.get('message')}")
+        else:
+            print(f" -> Código HTTP inesperado en rss2json: {res.status_code}")
     except Exception as e:
-        print(f" -> Error en extracción de Unión Rayo: {e}")
+        print(f" -> Error crítico en fetch_union_rayo_browser: {e}")
 
     return news_items
 
