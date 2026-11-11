@@ -6,7 +6,6 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 import cloudscraper
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
 
 FEEDS = [
     {"url": "https://www.rayovallecano.es/rss", "fuente": "Oficial"},
@@ -31,7 +30,8 @@ def clean_image_url(image_url, base_feed_url=""):
             image_url = image_url[1:]
         image_url = f"{base_url}/{image_url}"
     
-    # Quitar doble extensión tipo .jpg.webp o .jpg.avif de Unión Rayo
+    # Quitar parámetros extra de proxies si los hubiera y limpiar dobles extensiones
+    image_url = image_url.split("?")[0] if "wp-content/uploads" in image_url else image_url
     image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
     if ".avif" in image_url.lower():
         clean_url = image_url.replace("https://", "").replace("http://", "")
@@ -51,57 +51,74 @@ def get_og_image(article_url):
         pass
     return ""
 
-def get_union_rayo_image(article_url, title=""):
-    """Obtiene la foto de la noticia desde el índice de Bing (sin tocar el Cloudflare de unionrayo.es)"""
-    headers_bing = {
+def extract_og_from_html(html_text):
+    """Busca exclusivamente el meta og:image o twitter:image real de la noticia"""
+    if not html_text:
+        return ""
+    patrones = [
+        r'<meta[^>]+property=["\']og:image(?::secure_url)?["\'][^>]+content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image(?::secure_url)?["\']',
+        r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image["\']'
+    ]
+    for p in patrones:
+        m = re.search(p, html_text, re.IGNORECASE)
+        if m:
+            url = m.group(1).strip()
+            if "wp-content/uploads" in url and "cropped-favicon" not in url:
+                return url
+    return ""
+
+def get_union_rayo_real_og_image(article_url):
+    """Extrae el <meta property='og:image'> exacto del artículo a través de Google Proxy y Archive/Cors"""
+    if not article_url:
+        return ""
+
+    headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "es-ES,es;q=0.9"
     }
 
-    # Extraemos el slug de la URL (ej: "el-rayo-insiste-en-que-no-jugara-en-vallecas...")
-    slug = article_url.rstrip("/").split("/")[-1].replace("-", " ")
-
-    # Probamos primero buscando por la URL/slug en Bing Images y luego por el título
-    consultas = [
-        f"site:unionrayo.es {title}",
-        f"unionrayo.es {slug}"
-    ]
-
-    for consulta in consultas:
-        try:
-            q = urllib.parse.quote(consulta.strip())
-            bing_url = f"https://www.bing.com/images/search?q={q}&first=1"
-            res = scraper.get(bing_url, headers=headers_bing, timeout=8)
-            if res.status_code == 200 and res.text:
-                html_unescaped = res.text.replace("&quot;", '"').replace("\\/", "/")
-                
-                # 1. Prioridad absoluta: URL original de wp-content/uploads/ de Unión Rayo indexada en Bing
-                wp_matches = re.findall(
-                    r'"murl"\s*:\s*"(https?://[^"]*unionrayo\.es/wp-content/uploads/[^"]+\.(?:jpg|jpeg|png|webp))"',
-                    html_unescaped,
-                    re.IGNORECASE
-                )
-                for img in wp_matches:
-                    if "cropped-favicon" not in img and "logo" not in img.lower():
-                        return img
-
-                # 2. Segunda opción: Cualquier murl o turl (miniatura en caché de Bing) del primer resultado
-                murl_match = re.search(r'"murl"\s*:\s*"(https?://[^"]+)"', html_unescaped)
-                if murl_match and "cropped-favicon" not in murl_match.group(1):
-                    return murl_match.group(1)
-        except Exception as e:
-            print(f"   [Aviso Bing]: {e}")
-
-    # 3. Intentamos con DuckDuckGo / Yahoo Images (tampoco bloquean IPs de GitHub)
+    # VÍA 1: Pasarela oficial de Google Translate Web Proxy (IP de GoogleBot, Cloudflare siempre le deja leer el og:image)
     try:
-        q_yahoo = urllib.parse.quote(f"unionrayo.es {title[:60]}")
-        yahoo_url = f"https://images.search.yahoo.com/search/images?p={q_yahoo}"
-        res = scraper.get(yahoo_url, headers=headers_bing, timeout=8)
+        parsed = urllib.parse.urlparse(article_url)
+        google_proxy_url = f"https://unionrayo-es.translate.goog{parsed.path}?_x_tr_sl=es&_x_tr_tl=es&_x_tr_hl=es"
+        res = scraper.get(google_proxy_url, headers=headers, timeout=10)
         if res.status_code == 200 and res.text:
-            text_clean = urllib.parse.unquote(res.text).replace("\\/", "/")
+            img = extract_og_from_html(res.text)
+            if img:
+                return img
+    except Exception:
+        pass
+
+    # VÍA 2: Validador de tarjetas de Facebook / WhatsApp a través de CorsProxy / AllOrigins con timestamp anti-caché
+    encoded_url = urllib.parse.quote(article_url, safe='')
+    puentes = [
+        f"https://corsproxy.io/?url={encoded_url}",
+        f"https://api.allorigins.win/raw?url={encoded_url}"
+    ]
+    for puente in puentes:
+        try:
+            res = scraper.get(puente, headers=headers, timeout=8)
+            if res.status_code == 200 and res.text:
+                img = extract_og_from_html(res.text)
+                if img:
+                    return img
+        except Exception:
+            pass
+
+    # VÍA 3: Búsqueda por URL exacta en Google/Bing (solo acepta si coincide con el enlace exacto de la noticia)
+    try:
+        slug = article_url.rstrip("/").split("/")[-1]
+        q = urllib.parse.quote(f'site:unionrayo.es/{slug}')
+        bing_url = f"https://www.bing.com/Search?q={q}"
+        res = scraper.get(bing_url, headers=headers, timeout=8)
+        if res.status_code == 200 and res.text:
+            html_unescaped = res.text.replace("&quot;", '"').replace("\\/", "/")
             wp_match = re.search(
                 r'(https?://(?:www\.)?unionrayo\.es/wp-content/uploads/\d{4}/\d{2}/[^"\'\s&<>]+\.(?:jpg|jpeg|png|webp))',
-                text_clean,
+                html_unescaped,
                 re.IGNORECASE
             )
             if wp_match and "cropped-favicon" not in wp_match.group(1):
@@ -112,9 +129,10 @@ def get_union_rayo_image(article_url, title=""):
     return ""
 
 def fetch_union_rayo_browser():
-    print("=== EXTRAYENDO UNIÓN RAYO (RSS2JSON + BUSCADOR DE IMÁGENES) ===")
+    print("=== EXTRAYENDO UNIÓN RAYO (RSS2JSON + GOOGLE PROXY OG:IMAGE) ===")
     news_items = []
     try:
+        # Añadimos parámetro para evitar caché antigua en rss2json
         rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
         res = scraper.get(rss2json_url, timeout=15)
         
@@ -122,7 +140,7 @@ def fetch_union_rayo_browser():
             data = res.json()
             if data.get("status") == "ok":
                 items = data.get("items", [])
-                print(f" -> {len(items)} titulares recibidos desde rss2json. Buscando sus fotos...")
+                print(f" -> {len(items)} noticias recibidas de Unión Rayo. Extrayendo el og:image real de cada noticia...")
                 
                 for item in items:
                     title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
@@ -142,15 +160,22 @@ def fetch_union_rayo_browser():
                     description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
                     content_html = item.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
 
+                    # 1. Miramos si el propio RSS o el cuerpo HTML trae una imagen interna
                     enclosure = item.get("enclosure")
                     enclosure_link = enclosure.get("link", "") if isinstance(enclosure, dict) else ""
                     image_url = item.get("thumbnail", "") or enclosure_link
 
+                    if not image_url and content_html:
+                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                        if img_match and "wp-content/uploads" in img_match.group(1):
+                            image_url = img_match.group(1)
+
+                    # 2. Extraemos el <meta property="og:image"> exacto del artículo
                     if not image_url and link:
-                        image_url = get_union_rayo_image(link, title)
+                        image_url = get_union_rayo_real_og_image(link)
 
                     image_url = clean_image_url(image_url, "https://unionrayo.es")
-                    print(f"   * [{title[:35]}...] -> Foto: {'SÍ (' + image_url[:45] + '...)' if image_url else 'NO'}")
+                    print(f"   * [{title[:38]}...] -> {'OK: ' + image_url.split('/')[-1] if image_url else 'SIN FOTO'}")
                     
                     categories = item.get("categories")
                     if not isinstance(categories, list) or not categories:
@@ -169,7 +194,7 @@ def fetch_union_rayo_browser():
                     })
                 
                 con_foto = sum(1 for n in news_items if n["image"])
-                print(f" -> ¡COMPLETADO! {len(news_items)} noticias de Unión Rayo guardadas ({con_foto} con foto).")
+                print(f" -> ¡COMPLETADO! {len(news_items)} noticias de Unión Rayo guardadas ({con_foto} con su og:image real).")
             else:
                 print(f" -> Error devuelto por rss2json: {data.get('message')}")
         else:
