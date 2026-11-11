@@ -31,63 +31,73 @@ def get_og_image(article_url):
     return ""
 
 def fetch_union_rayo_api():
-    print("Obteniendo noticias de Unión Rayo vía API REST (Bypass RSS)...")
+    print("Obteniendo noticias de Unión Rayo vía pasarela rss2json...")
     news_items = []
     try:
-        # Endpoint nativo de WordPress que nos da los datos limpios en JSON
-        url = "https://unionrayo.es/wp-json/wp/v2/posts?per_page=15&_embed"
+        # Usamos rss2json como puente para saltar el bloqueo de IP de GitHub Actions
+        url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
         response = scraper.get(url, timeout=15)
         
         if response.status_code == 200:
-            posts = response.json()
-            for post in posts:
-                # Título limpio
-                raw_title = post.get("title", {}).get("rendered", "")
-                title = BeautifulSoup(raw_title, "html.parser").text
-                
-                link = post.get("link", "")
-                
-                # Fecha: Convertimos de ISO a formato RSS para que tu ordenación funcione
-                raw_date = post.get("date_gmt", "")
-                pub_date = ""
-                if raw_date:
-                    try:
-                        dt = datetime.fromisoformat(raw_date)
-                        pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
-                    except:
-                        pass
-                
-                # Resumen limpio de etiquetas HTML
-                raw_desc = post.get("excerpt", {}).get("rendered", "")
-                description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[...]", "...").replace("[&hellip;]", "...").strip()
-                
-                content_html = post.get("content", {}).get("rendered", "")
-                
-                # Foto principal desde el propio JSON (¡sin raspar la web!)
-                image_url = ""
-                if "_embedded" in post and "wp:featuredmedia" in post["_embedded"]:
-                    media = post["_embedded"]["wp:featuredmedia"][0]
-                    image_url = media.get("source_url", "")
-                
-                if image_url:
-                    image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
-                    if ".avif" in image_url.lower():
-                        clean_url = image_url.replace("https://", "").replace("http://", "")
-                        image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
+            data = response.json()
+            if data.get("status") == "ok":
+                for item in data.get("items", []):
+                    title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
+                    link = item.get("link", "")
+                    
+                    # Convertimos la fecha 'YYYY-MM-DD HH:MM:SS' al formato estándar RSS
+                    raw_date = item.get("pubDate", "")
+                    pub_date = raw_date
+                    if raw_date:
+                        try:
+                            dt = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S")
+                            pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
+                        except:
+                            pass
+                    
+                    raw_desc = item.get("description", "")
+                    description = BeautifulSoup(raw_desc, "html.parser").text
+                    description = description.replace("Leer más", "").replace("[...]", "...").replace("[…]", "...").strip()
+                    
+                    content_html = item.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
+                    
+                    # Extraemos la imagen del JSON o buscando dentro del HTML del artículo (sin visitar la web)
+                    image_url = item.get("thumbnail", "") or item.get("enclosure", {}).get("link", "")
+                    if not image_url and content_html:
+                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                        if img_match:
+                            image_url = img_match.group(1)
+                    if not image_url and raw_desc:
+                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', raw_desc, re.IGNORECASE)
+                        if img_match:
+                            image_url = img_match.group(1)
+                            
+                    if image_url:
+                        image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
+                        if ".avif" in image_url.lower():
+                            clean_url = image_url.replace("https://", "").replace("http://", "")
+                            image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
 
-                news_items.append({
-                    "id": str(post.get("id", link)),
-                    "title": title,
-                    "link": link,
-                    "published": pub_date,
-                    "summary": description,
-                    "content": content_html,
-                    "categories": ["Unión Rayo"],
-                    "image": image_url,
-                    "fuente": "Unión Rayo"
-                })
+                    categories = item.get("categories", ["Unión Rayo"])
+
+                    news_items.append({
+                        "id": item.get("guid", link),
+                        "title": title,
+                        "link": link,
+                        "published": pub_date,
+                        "summary": description,
+                        "content": content_html,
+                        "categories": categories,
+                        "image": image_url,
+                        "fuente": "Unión Rayo"
+                    })
+                print(f" -> {len(news_items)} noticias de Unión Rayo rescatadas con éxito.")
+            else:
+                print(f" -> Error en rss2json: {data.get('message')}")
+        else:
+            print(f" -> Fallo HTTP {response.status_code} al conectar con rss2json")
     except Exception as e:
-         print(f"Error con la API de Unión Rayo: {e}")
+        print(f"Error con la pasarela de Unión Rayo: {e}")
          
     return news_items
 
