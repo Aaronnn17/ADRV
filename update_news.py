@@ -28,7 +28,7 @@ def clean_image_url(image_url, base_feed_url=""):
     
     if "wp-content/uploads" in image_url:
         image_url = image_url.split("?")[0]
-        # Limpiamos recortes para obtener la foto en alta resolución
+        # Limpiamos el recorte para coger la imagen en resolución original
         image_url = re.sub(r'-\d+x\d+\.(jpg|jpeg|png|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
 
     image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
@@ -38,80 +38,91 @@ def clean_image_url(image_url, base_feed_url=""):
     return image_url
 
 def fetch_union_rayo_wp_api():
-    print("=== EXTRAYENDO UNIÓN RAYO (VÍA WP REST API) ===")
+    print("=== EXTRAYENDO UNIÓN RAYO (API WP - 1 SOLA LLAMADA) ===")
     news_items = []
     try:
-        # 1. Obtenemos las noticias de forma segura con rss2json
+        # RSS vía rss2json
         rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
         res = scraper.get(rss2json_url, timeout=15)
         
-        if res.status_code == 200 and res.json().get("status") == "ok":
-            items = res.json().get("items", [])
+        if res.status_code != 200 or res.json().get("status") != "ok":
+            print(" -> Fallo al obtener el RSS de Unión Rayo vía rss2json.")
+            return news_items
+        items = res.json().get("items", [])
+
+        # UNA sola llamada a la API para obtener featured media de todos los posts
+        featured_map = {}  # {post_id_str: image_url, slug: image_url}
+        try:
+            base_api_url = "https://unionrayo.es/wp-json/wp/v2/posts?_embed&per_page=15"
+            # Proxy limpio para evitar el bloqueo 403 de Cloudflare a la IP de GitHub
+            proxy_url = f"https://api.allorigins.win/raw?url={urllib.parse.quote(base_api_url)}"
             
-            for item in items:
-                title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
-                link = item.get("link", "")
-                guid = item.get("guid", link)
-                
-                raw_date = item.get("pubDate", "")
-                pub_date = raw_date
-                if raw_date:
-                    try:
-                        pub_date = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S").strftime("%a, %d %b %Y %H:%M:%S +0000")
-                    except: pass
+            api_res = scraper.get(proxy_url, timeout=15)
+            if api_res.status_code == 200:
+                for post in api_res.json():
+                    pid = str(post.get("id", ""))
+                    slug = post.get("slug", "")
+                    embedded = post.get("_embedded", {})
+                    media = embedded.get("wp:featuredmedia", [])
+                    if media and isinstance(media, list):
+                        img_url = media[0].get("source_url", "")
+                        if img_url:
+                            if pid: featured_map[pid] = img_url
+                            if slug: featured_map[slug] = img_url
+            print(f"   API WP: {len(featured_map) // 2} featured images obtenidas en bloque.")
+        except Exception as e:
+            print(f"   [Aviso] API WP falló: {e}")
 
-                raw_desc = item.get("description", "")
-                description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
-                content_html = item.get("content", "").replace('loading="lazy"', '')
-                
-                image_url = ""
-
-                # 2. LA MAGIA: Extraer ID del post desde el guid y llamar a la API REST
-                post_id_match = re.search(r'\?p=(\d+)', guid)
-                if post_id_match:
-                    post_id = post_id_match.group(1)
-                    try:
-                        # Usamos ?_embed para que devuelva la URL de la foto en la misma petición
-                        wp_api_url = f"https://unionrayo.es/wp-json/wp/v2/posts/{post_id}?_embed"
-                        # Pasamos por un proxy CORS limpio para esquivar a Cloudflare
-                        proxy_url = f"https://api.allorigins.win/raw?url={urllib.parse.quote(wp_api_url)}"
-                        
-                        api_res = scraper.get(proxy_url, timeout=10)
-                        if api_res.status_code == 200:
-                            post_data = api_res.json()
-                            # Extraemos la imagen destacada del JSON anidado
-                            embedded = post_data.get("_embedded", {})
-                            wp_featuredmedia = embedded.get("wp:featuredmedia", [])
-                            if wp_featuredmedia and isinstance(wp_featuredmedia, list):
-                                image_url = wp_featuredmedia[0].get("source_url", "")
-                    except Exception as e:
-                        print(f"   [Aviso API en {title[:20]}...]: {e}")
-
-                # 3. Respaldo por si falla la API (busca en el cuerpo HTML)
-                if not image_url and content_html:
-                    img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
-                    if img_match and "wp-content/uploads" in img_match.group(1):
-                        image_url = img_match.group(1)
-
-                image_url = clean_image_url(image_url)
-                print(f"   * [{title[:38]}...] -> {'OK: ' + image_url.split('/')[-1] if image_url else 'SIN FOTO'}")
-
-                news_items.append({
-                    "id": guid,
-                    "title": title,
-                    "link": link,
-                    "published": pub_date,
-                    "summary": description,
-                    "content": content_html,
-                    "categories": item.get("categories", ["Unión Rayo"]),
-                    "image": image_url,
-                    "fuente": "Unión Rayo"
-                })
+        for item in items:
+            title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
+            link = item.get("link", "")
+            guid = item.get("guid", link)
+            slug_match = link.rstrip('/').split('/')[-1]
             
-            con_foto = sum(1 for n in news_items if n["image"])
-            print(f" -> ¡ÉXITO! {len(news_items)} noticias procesadas ({con_foto} con foto).")
+            # Extraer post_id
+            post_id_match = re.search(r'\?p=(\d+)', guid)
+            post_id = post_id_match.group(1) if post_id_match else None
+
+            raw_date = item.get("pubDate", "")
+            pub_date = raw_date
+            if raw_date:
+                try:
+                    pub_date = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S").strftime("%a, %d %b %Y %H:%M:%S +0000")
+                except: pass
+
+            raw_desc = item.get("description", "")
+            description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
+            content_html = item.get("content", "").replace('loading="lazy"', '')
+            
+            image_url = ""
+
+            # 1ª: featured media desde la API (por ID o por Slug)
+            if post_id and post_id in featured_map:
+                image_url = featured_map[post_id]
+            elif slug_match and slug_match in featured_map:
+                image_url = featured_map[slug_match]
+
+            # 2ª: imagen embebida en content:encoded
+            if not image_url and content_html:
+                img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                if img_match and "wp-content/uploads" in img_match.group(1):
+                    image_url = img_match.group(1)
+
+            image_url = clean_image_url(image_url)
+            print(f"   * [{title[:38]}...] -> {'OK: ' + image_url.split('/')[-1] if image_url else 'SIN FOTO'}")
+
+            news_items.append({
+                "id": guid, "title": title, "link": link,
+                "published": pub_date, "summary": description,
+                "content": content_html,
+                "categories": item.get("categories", ["Unión Rayo"]),
+                "image": image_url, "fuente": "Unión Rayo"
+            })
+        
+        con_foto = sum(1 for n in news_items if n["image"])
+        print(f" -> {len(news_items)} noticias de Unión Rayo procesadas ({con_foto} con foto).")
     except Exception as e:
-        print(f" -> Error crítico: {e}")
+        print(f" -> Error crítico en Unión Rayo: {e}")
 
     return news_items
 
