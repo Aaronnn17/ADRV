@@ -2,11 +2,13 @@ import xml.etree.ElementTree as ET
 import urllib.parse
 import json
 import re
+import difflib
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 import cloudscraper
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
+import unicodedata
 
 FEEDS = [
     {"url": "https://www.rayovallecano.es/rss", "fuente": "Oficial"},
@@ -15,6 +17,11 @@ FEEDS = [
 ]
 
 scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
+
+def normalize_text(text):
+    if not text: return ""
+    text = unicodedata.normalize('NFKD', str(text)).encode('ASCII', 'ignore').decode('utf-8')
+    return re.sub(r'[^a-z0-9\s]', '', text.lower()).strip()
 
 def clean_image_url(image_url):
     if not image_url: return ""
@@ -26,9 +33,9 @@ def clean_image_url(image_url):
         
     image_url = image_url.replace("unionrayo-es.translate.goog", "unionrayo.es")
     
-    # Limpieza del recorte que vemos en tu captura (-350x250.jpeg -> .jpeg)
     if "wp-content/uploads" in image_url:
         image_url = image_url.split("?")[0]
+        # Limpieza del recorte -350x250.jpeg -> .jpeg
         image_url = re.sub(r'-\d+x\d+\.(jpg|jpeg|png|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
 
     image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
@@ -38,8 +45,8 @@ def clean_image_url(image_url):
     return image_url
 
 def get_images_from_homepage():
-    """Hace scroll en la portada y caza las fotos usando los selectores exactos de tu captura"""
-    image_map = {}
+    """Hace scroll en la portada y empareja las fotos con el título del artículo"""
+    image_map_by_title = {}
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -71,54 +78,61 @@ def get_images_from_homepage():
             }""")
             page.wait_for_timeout(2000)
             
-            # Extraemos basándonos en tu captura: .jeg_post y .jeg_thumb
+            # Extraemos usando selectores amplios y guardamos asociando al TÍTULO, no a la URL
             cards_data = page.evaluate("""() => {
-                const results = {};
+                const results = [];
                 
                 // 1. Carrusel de arriba (fondo CSS)
                 document.querySelectorAll('.jeg_slide_item').forEach(slide => {
-                    const a = slide.querySelector('a[href]');
+                    const titleEl = slide.querySelector('.jeg_post_title, h2, h3, a');
                     const style = slide.getAttribute('style') || '';
                     const match = style.match(/url\\(['"]?([^'"\\)]+)['"]?\\)/i);
-                    if (a && match) {
-                        results[a.href] = match[1];
+                    if (titleEl && match) {
+                        results.push({title: titleEl.innerText.trim(), photo: match[1]});
                     }
                 });
 
-                // 2. Noticias estándar (la de tu captura)
+                // 2. Noticias estándar (.jeg_post)
                 document.querySelectorAll('article.jeg_post').forEach(article => {
-                    const a = article.querySelector('.jeg_thumb a');
-                    if (!a || !a.href) return;
+                    const titleEl = article.querySelector('.jeg_post_title, h2, h3');
+                    if (!titleEl) return;
                     
-                    const img = a.querySelector('img');
+                    let photo = '';
+                    const img = article.querySelector('img');
                     if (img) {
-                        // Priorizamos src de alta calidad, o el src base
-                        let photo = img.getAttribute('data-src') || img.currentSrc || img.src || '';
+                        // Cazamos cualquier atributo que contenga la foto, priorizando data-src por el Lazy Loading
+                        photo = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.currentSrc || img.src || '';
                         
-                        if (photo && !photo.startsWith('data:')) {
-                            results[a.href] = photo;
+                        // Si hay srcset, cogemos la primera url limpia
+                        if (!photo && img.getAttribute('srcset')) {
+                            photo = img.getAttribute('srcset').split(',')[0].trim().split(' ')[0];
                         }
+                    }
+                    
+                    if (photo && !photo.startsWith('data:')) {
+                        results.push({title: titleEl.innerText.trim(), photo: photo});
                     }
                 });
                 
                 return results;
             }""")
             
-            for url_key, foto_url in cards_data.items():
-                clean_key = url_key.split('?')[0].replace('unionrayo-es.translate.goog', 'unionrayo.es').rstrip('/')
-                image_map[clean_key] = clean_image_url(foto_url)
+            for card in cards_data:
+                norm_title = normalize_text(card.get("title", ""))
+                foto_url = card.get("photo", "")
+                if norm_title and foto_url:
+                    image_map_by_title[norm_title] = clean_image_url(foto_url)
                 
             browser.close()
     except Exception as e:
         print(f" -> Aviso Playwright Portada: {e}")
         
-    return image_map
+    return image_map_by_title
 
 def fetch_union_rayo():
-    print("=== EXTRAYENDO UNIÓN RAYO (PORTADA PLAYWRIGHT REFINADA) ===")
+    print("=== EXTRAYENDO UNIÓN RAYO (PORTADA PLAYWRIGHT REFINADA - FUZZY MATCHING) ===")
     news_items = []
     try:
-        # Obtenemos textos seguros con rss2json
         rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
         res = scraper.get(rss2json_url, timeout=15)
         
@@ -126,13 +140,13 @@ def fetch_union_rayo():
             items = res.json().get("items", [])
             
             print(" -> Cargando portada para cazar fotos con selectores exactos...")
-            image_map = get_images_from_homepage()
-            print(f" -> Fotos indexadas desde portada: {len(image_map)}")
+            image_map_by_title = get_images_from_homepage()
+            print(f" -> Fotos indexadas desde portada: {len(image_map_by_title)}")
             
             for item in items:
                 title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
+                norm_title = normalize_text(title)
                 link = item.get("link", "")
-                clean_link = link.split('?')[0].rstrip('/')
                 
                 raw_date = item.get("pubDate", "")
                 pub_date = raw_date
@@ -145,9 +159,19 @@ def fetch_union_rayo():
                 description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
                 content_html = item.get("content", "").replace('loading="lazy"', '')
                 
-                # Cruzamos la URL de la noticia con nuestro mapa de la portada
-                image_url = image_map.get(clean_link, "")
+                image_url = ""
+
+                # 1. Búsqueda exacta por título
+                if norm_title in image_map_by_title:
+                    image_url = image_map_by_title[norm_title]
                 
+                # 2. Búsqueda difusa (Fuzzy Matching) si el título varía ligeramente
+                if not image_url and image_map_by_title:
+                    matches = difflib.get_close_matches(norm_title, image_map_by_title.keys(), n=1, cutoff=0.7)
+                    if matches:
+                        image_url = image_map_by_title[matches[0]]
+                
+                # 3. Búsqueda en el cuerpo HTML del RSS
                 if not image_url and content_html:
                     img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
                     if img_match and "wp-content/uploads" in img_match.group(1):
