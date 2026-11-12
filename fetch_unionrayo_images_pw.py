@@ -1,10 +1,14 @@
 """
-Obtiene las fotos de portada de Union Rayo con un Chromium real (Playwright),
+Obtiene las fotos de portada de Union Rayo con un navegador real (Playwright),
 igual que update_squad.py hace con la web oficial del Rayo.
 
 Guarda unionrayo_images.json ({"images": {url_noticia: url_imagen}}), el mismo formato
-que ya lee update_news.py. Si Cloudflare bloquea, muestra el motivo y sale con codigo 1
-SIN tocar el fichero anterior.
+que ya lee update_news.py. Si la web muestra la verificacion anti-bot y no se resuelve,
+muestra el motivo y sale con codigo 1 SIN tocar el fichero anterior.
+
+v2: usa Google Chrome real (channel="chrome", ya instalado en los runners de GitHub),
+oculta navigator.webdriver y espera hasta ~60 s a que se resuelva la verificacion,
+mostrando cada cambio de titulo.
 
 Dependencias: pip install playwright && playwright install --with-deps chromium
 """
@@ -17,6 +21,8 @@ from playwright.sync_api import sync_playwright
 BASE = "https://unionrayo.es/"
 OUT = "unionrayo_images.json"
 MAX_ENTRIES = 300
+WAIT_STEPS = 30          # 30 x 2 s = 60 s maximo esperando a la verificacion
+BROWSER_ARGS = ["--no-sandbox", "--disable-blink-features=AutomationControlled"]
 
 SCROLL_JS = """async () => {
   for (let i = 0; i < 40; i++) {
@@ -59,15 +65,26 @@ def load_old():
         return {}
 
 
+def launch(p):
+    try:
+        browser = p.chromium.launch(channel="chrome", headless=True, args=BROWSER_ARGS)
+        print("Navegador: Google Chrome (channel=chrome)")
+        return browser
+    except Exception as e:
+        print(f"Chrome no disponible ({str(e)[:100]}). Uso Chromium de Playwright.")
+        return p.chromium.launch(headless=True, args=BROWSER_ARGS)
+
+
 def main():
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+        browser = launch(p)
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             viewport={"width": 1440, "height": 900},
             locale="es-ES",
             timezone_id="Europe/Madrid",
         )
+        context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
         page = context.new_page()
 
         try:
@@ -77,27 +94,39 @@ def main():
             browser.close()
             sys.exit(1)
 
-        print(f"HTTP {resp.status if resp else '?'} | titulo: {page.title()!r}")
+        print(f"HTTP inicial {resp.status if resp else '?'}")
 
-        # Si hay desafio de Cloudflare o carga lenta, damos tiempo a que aparezcan las tarjetas
-        for _ in range(10):
-            if page.locator(".jeg_thumb").count() > 0:
+        # Espera a que se resuelva la verificacion anti-bot y aparezcan las tarjetas
+        last_title = None
+        found = False
+        for i in range(WAIT_STEPS):
+            try:
+                title = page.title()
+                n = page.locator(".jeg_thumb").count()
+            except Exception:
+                # la pagina esta navegando (la verificacion recarga la URL)
+                page.wait_for_timeout(2000)
+                continue
+            if title != last_title:
+                print(f"  [{i * 2:>2}s] titulo: {title!r} | url: {page.url}")
+                last_title = title
+            if n > 0:
+                found = True
                 break
-            page.wait_for_timeout(1500)
+            page.wait_for_timeout(2000)
 
-        page.evaluate(SCROLL_JS)  # fuerza la carga de imagenes lazy
-        page.wait_for_timeout(1500)
-
-        items = page.evaluate(EXTRACT_JS)
-        if not items:
+        if not found:
             try:
                 body = page.inner_text("body")[:400].replace("\n", " ")
             except Exception:
                 body = "(sin body)"
-            print(f"Sin tarjetas .jeg_thumb. Texto de la pagina: {body}")
+            print(f"Sin tarjetas .jeg_thumb tras {WAIT_STEPS * 2} s. Texto de la pagina: {body}")
             browser.close()
             sys.exit(1)
 
+        page.evaluate(SCROLL_JS)  # fuerza la carga de imagenes lazy
+        page.wait_for_timeout(1500)
+        items = page.evaluate(EXTRACT_JS)
         browser.close()
 
     images = {}
