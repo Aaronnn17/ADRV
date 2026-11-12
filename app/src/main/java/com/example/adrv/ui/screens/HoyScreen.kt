@@ -1,8 +1,8 @@
 package com.example.adrv.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,11 +20,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -35,16 +33,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,19 +48,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.adrv.data.RayoRepository
-import com.example.adrv.data.RayoScraper
-import com.example.adrv.data.SampleData
-import com.example.adrv.model.Match
 import com.example.adrv.model.MatchEvent
-import com.example.adrv.model.MatchStatus
 import com.example.adrv.model.RayoData
-import com.example.adrv.ui.components.RayoFranjaBackground
 import com.example.adrv.ui.components.RayoHeader
 import com.example.adrv.ui.components.bounceClick
 import com.example.adrv.ui.theme.GoldAccent
@@ -77,13 +68,6 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import android.content.Context
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-
 
 @Composable
 fun HoyScreen() {
@@ -93,8 +77,9 @@ fun HoyScreen() {
     var isRefreshing by remember { mutableStateOf(false) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
 
-    // VARIABLES PARA CONTROLAR LOS DIÁLOGOS DE NOVEDADES
-    var selectedNewsForDialog by remember { mutableStateOf<com.example.adrv.model.News?>(null) }
+    // VARIABLES PARA CONTROLAR LOS DIÁLOGOS Y VISOR WEB
+    var selectedNewsUrl by remember { mutableStateOf<String?>(null) }
+    var selectedNewsTitle by remember { mutableStateOf("") }
     var selectedMatchForDialog by remember { mutableStateOf<com.example.adrv.model.ApiMatch?>(null) }
 
     val context = LocalContext.current
@@ -108,10 +93,8 @@ fun HoyScreen() {
     val today = LocalDate.now(ZoneId.of("Europe/Madrid"))
     val scope = rememberCoroutineScope()
 
-    // Estado y función para refrescar deslizando hacia abajo
     val refreshState = rememberPullToRefreshState()
 
-    // Función exclusiva cuando el usuario desliza hacia abajo
     fun refreshData() {
         scope.launch {
             isRefreshing = true
@@ -122,7 +105,6 @@ fun HoyScreen() {
         }
     }
 
-    // Carga inicial limpia sin activar la animación de la flecha superior
     LaunchedEffect(Unit) {
         scope.launch {
             isLoading = true
@@ -205,140 +187,142 @@ fun HoyScreen() {
         }
     }
 
-    // CONTENEDOR OFICIAL DE MATERIAL 3 PARA DESLIZAR Y ACTUALIZAR
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = { refreshData() },
-        state = refreshState,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                RayoHeader(
-                    onNotificationClick = {
-                        if (unreadCount > 0) showNotificationsDialog = true
-                    },
-                    unreadCount = unreadCount
-                )
+    // SI HAY UNA URL SELECCIONADA, MOSTRAMOS EL VISOR WEB. SI NO, MOSTRAMOS LA PORTADA
+    if (selectedNewsUrl != null) {
+        WebViewScreen(
+            url = selectedNewsUrl!!,
+            title = selectedNewsTitle,
+            onBackClick = {
+                selectedNewsUrl = null
+                selectedNewsTitle = ""
+            }
+        )
+    } else {
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { refreshData() },
+            state = refreshState,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    RayoHeader(
+                        onNotificationClick = {
+                            if (unreadCount > 0) showNotificationsDialog = true
+                        },
+                        unreadCount = unreadCount
+                    )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                if (isLoading) {
-                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
-                } else if (nextMatch != null) {
-                    NextMatchCard(match = nextMatch)
+                    if (isLoading) {
+                        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        }
+                    } else if (nextMatch != null) {
+                        NextMatchCard(match = nextMatch)
 
-                    if (novedadesHistorial.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(24.dp))
+                        if (novedadesHistorial.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(24.dp))
 
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = "Últimas Novedades",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 18.sp,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-                            )
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "Últimas Novedades",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 18.sp,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                                )
 
-                            novedadesHistorial.forEach { novedad ->
-                                val parts = novedad.split("|", limit = 3)
-                                val type = parts.getOrNull(0) ?: ""
-                                val id = parts.getOrNull(1) ?: ""
-                                val text = parts.getOrNull(2) ?: novedad
+                                novedadesHistorial.forEach { novedad ->
+                                    val parts = novedad.split("|", limit = 3)
+                                    val type = parts.getOrNull(0) ?: ""
+                                    val id = parts.getOrNull(1) ?: ""
+                                    val text = parts.getOrNull(2) ?: novedad
 
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
-                                        .bounceClick {
-                                            if (type == "NEWS") {
-                                                selectedNewsForDialog = newsData?.find { it.id == id }
-                                            } else if (type == "MATCH") {
-                                                selectedMatchForDialog = rayoData?.partidos?.find { it.id.toString() == id }
-                                            } else {
-                                                if (text.contains("noticia", ignoreCase = true)) {
-                                                    val titulo = text.substringAfter(":").trim()
-                                                    selectedNewsForDialog = newsData?.find { it.title.contains(titulo, ignoreCase = true) }
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                            .bounceClick {
+                                                if (type == "NEWS") {
+                                                    val newsItem = newsData?.find { it.id == id }
+                                                    if (newsItem != null && newsItem.link.isNotEmpty()) {
+                                                        selectedNewsUrl = newsItem.link
+                                                        selectedNewsTitle = newsItem.title
+                                                    }
+                                                } else if (type == "MATCH") {
+                                                    selectedMatchForDialog = rayoData?.partidos?.find { it.id.toString() == id }
+                                                } else {
+                                                    if (text.contains("noticia", ignoreCase = true)) {
+                                                        val titulo = text.substringAfter(":").trim()
+                                                        val newsItem = newsData?.find { it.title.contains(titulo, ignoreCase = true) }
+                                                        if (newsItem != null && newsItem.link.isNotEmpty()) {
+                                                            selectedNewsUrl = newsItem.link
+                                                            selectedNewsTitle = newsItem.title
+                                                        }
+                                                    }
                                                 }
-                                            }
-                                        },
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
-                                    shape = RoundedCornerShape(12.dp),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                            },
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                                        shape = RoundedCornerShape(12.dp),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                                     ) {
-                                        Icon(Icons.Default.Star, contentDescription = null, tint = RayoRed, modifier = Modifier.size(20.dp))
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                        Row(
+                                            modifier = Modifier.padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Star, contentDescription = null, tint = RayoRed, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                        }
                                     }
                                 }
                             }
                         }
+                    } else {
+                        Text("No hay datos de partidos disponibles", color = Color.Gray)
                     }
-                } else {
-                    Text("No hay datos de partidos disponibles", color = Color.Gray)
+
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            if (showNotificationsDialog) {
-                AlertDialog(
-                    onDismissRequest = { showNotificationsDialog = false },
-                    title = {
-                        Text(text = "🔔 Novedades ADRV", fontWeight = FontWeight.Bold)
-                    },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            dynamicNotifications.forEach { notification ->
-                                val textToShow = notification.split("|", limit = 3).getOrNull(2) ?: notification
-                                Text(text = "• $textToShow")
+                if (showNotificationsDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showNotificationsDialog = false },
+                        title = {
+                            Text(text = "🔔 Novedades ADRV", fontWeight = FontWeight.Bold)
+                        },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                dynamicNotifications.forEach { notification ->
+                                    val textToShow = notification.split("|", limit = 3).getOrNull(2) ?: notification
+                                    Text(text = "• $textToShow")
+                                }
                             }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            showNotificationsDialog = false
-                            dynamicNotifications = emptyList()
-                        }) {
-                            Text(text = "Entendido", color = MaterialTheme.colorScheme.primary)
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(20.dp)
-                )
-            }
-        }
-    }
-
-    // Diálogos externos al contenedor principal
-    if (selectedNewsForDialog != null) {
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { selectedNewsForDialog = null },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-                NewsDetailScreen(article = selectedNewsForDialog!!)
-                IconButton(
-                    onClick = { selectedNewsForDialog = null },
-                    modifier = Modifier.padding(16.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White)
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showNotificationsDialog = false
+                                dynamicNotifications = emptyList()
+                            }) {
+                                Text(text = "Entendido", color = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(20.dp)
+                    )
                 }
             }
         }
     }
 
+    // Diálogo flotante transparente para el partido
     if (selectedMatchForDialog != null) {
         AlertDialog(
             onDismissRequest = { selectedMatchForDialog = null },
@@ -353,45 +337,9 @@ fun HoyScreen() {
             containerColor = Color.Transparent
         )
     }
-
-    // Mostrar la Noticia si hacemos clic
-    if (selectedNewsForDialog != null) {
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { selectedNewsForDialog = null },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-                // Como es pantalla completa, dibujamos tu NewsDetailScreen y le pasamos la noticia
-                NewsDetailScreen(article = selectedNewsForDialog!!)
-                // Botón flotante para cerrar
-                IconButton(
-                    onClick = { selectedNewsForDialog = null },
-                    modifier = Modifier.padding(16.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White)
-                }
-            }
-        }
-    }
-
-    // Mostrar el Partido si hacemos clic (reutilizamos tu NextMatchCard)
-    if (selectedMatchForDialog != null) {
-        AlertDialog(
-            onDismissRequest = { selectedMatchForDialog = null },
-            confirmButton = {
-                TextButton(onClick = { selectedMatchForDialog = null }) {
-                    Text("Cerrar", color = MaterialTheme.colorScheme.primary)
-                }
-            },
-            text = {
-                NextMatchCard(match = selectedMatchForDialog!!)
-            },
-            containerColor = Color.Transparent // Para que se vea limpia la tarjeta
-        )
-    }
 }
 
-// --- Funciones auxiliares para formatear las fechas en las novedades ---
+// --- Funciones auxiliares para formatear las fechas ---
 fun formatTimeForComparison(dateString: String): String {
     return try {
         val instant = Instant.parse(dateString)
@@ -418,11 +366,11 @@ fun MatchEventRow(event: MatchEvent) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp),
-        shape = RoundedCornerShape(24.dp), // Esquinas más redondeadas y modernas
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)), // Borde muy sutil
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -519,7 +467,6 @@ fun StatRow(label: String, homeValue: String, awayValue: String) {
 
 @Composable
 fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
-    // Conversión horaria exacta a Europa/Madrid (gestiona verano e invierno automáticamente)
     val formattedDateTime = remember(match.dateText) {
         try {
             val utcDateTime = ZonedDateTime.parse(match.dateText)
@@ -538,18 +485,17 @@ fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
             .fillMaxWidth()
             .padding(horizontal = 4.dp)
             .bounceClick { },
-        shape = RoundedCornerShape(24.dp), // Esquinas más redondeadas y modernas
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)), // Borde muy sutil
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Etiqueta de competición y jornada
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -593,7 +539,6 @@ fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Escudos y enfrentamiento
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround,
@@ -654,7 +599,6 @@ fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Fecha y hora local de Madrid
             Text(
                 text = formattedDateTime,
                 fontSize = 13.sp,
@@ -662,7 +606,6 @@ fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
                 color = MaterialTheme.colorScheme.primary
             )
 
-            // Estadio real (solo se muestra si la API trae un estadio válido)
             if (!match.venue.isNullOrEmpty() && match.venue != "Estadio por confirmar") {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
