@@ -615,9 +615,10 @@ fun ClasificacionView() {
 
 @Composable
 fun getStandingsZoneColor(position: Int): Color = when (position) {
-    in 1..4 -> Color(0xFF1E3A8A)   // Champions (Azul oscuro)
-    5 -> Color(0xFF0284C7)         // Europa League (Azul claro)
-    6 -> Color(0xFFEA580C)         // Conference (Naranja)
+    in 1..4 -> Color(0xFF1E3A8A)   // Champions League (1º a 4º - Azul oscuro)
+    5 -> Color(0xFF1E3A8A)         // Champions League (5º puesto - Mismo tono azul oscuro)
+    6 -> Color(0xFF0284C7)         // Europa League (6º puesto - Azul claro)
+    7 -> Color(0xFFEA580C)         // Conference League (7º puesto - Naranja)
     in 18..20 -> Color(0xFFDC2626) // Descenso (Rojo)
     else -> Color.Transparent
 }
@@ -680,8 +681,13 @@ fun PlantillaView() {
             CircularProgressIndicator()
         }
     } else {
-        val playersByPosition = squadData!!.squad.groupBy { it.position }
-        val sortedPositions = listOf("Goalkeeper", "Defence", "Midfield", "Offence")
+        // Agrupamos directamente usando "positionEs" de tu JSON en mayúsculas
+        val playersByPosition = squadData!!.squad.groupBy {
+            it.positionEs?.uppercase() ?: ""
+        }
+
+        // Claves exactas tal cual vienen en tu JSON
+        val sortedPositions = listOf("PORTERO", "DEFENSA", "CENTROCAMPISTA", "DELANTERO")
 
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
@@ -730,13 +736,22 @@ fun PlantillaView() {
                     }
                 }
 
-                // GRID DE CROMOS POR POSICIÓN
+                // GRID DE CROMOS ORDENADO POR POSITION_ES
                 sortedPositions.forEach { posKey ->
                     val playersInPos = playersByPosition[posKey] ?: emptyList()
                     if (playersInPos.isNotEmpty()) {
                         item {
+                            // Pluralizamos el título de la categoría
+                            val headerTitle = when (posKey) {
+                                "PORTERO" -> "Porteros"
+                                "DEFENSA" -> "Defensas"
+                                "CENTROCAMPISTA" -> "Centrocampistas"
+                                "DELANTERO" -> "Delanteros"
+                                else -> posKey
+                            }
+
                             Text(
-                                text = translatePosition(posKey),
+                                text = headerTitle,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 18.sp,
                                 color = MaterialTheme.colorScheme.primary,
@@ -848,10 +863,11 @@ fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onCl
                 )
             } else {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Home, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
+                    Icon(androidx.compose.material.icons.Icons.Default.Home, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
                 }
             }
 
+            // Fondo difuminado inferior para los textos
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -864,22 +880,7 @@ fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onCl
                     )
             )
 
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = getFlagEmoji(player.countryCode), fontSize = 12.sp)
-                val age = calculateAge(player.dateOfBirth)
-                if (age != null) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "$age", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
+            // Contenido inferior limpio: Solo Dorsal, Nombre y Posición
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -915,7 +916,10 @@ fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onCl
     }
 }
 
-// UTILIDADES PLANTILLA
+// ==========================================
+// UTILIDADES DE LA PLANTILLA
+// ==========================================
+
 fun getFlagEmoji(countryCode: String?): String {
     if (countryCode.isNullOrEmpty() || countryCode.length != 2) return "🏴"
     val code = countryCode.uppercase()

@@ -144,3 +144,12 @@ fun NewsDetailScreen(
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
+fun formatNewsDate(dateString: String?): String {
+    if (dateString.isNullOrBlank()) return ""
+    return try {
+        // Muestra los primeros 10 caracteres (por ejemplo: "2026-11-12") o devuelve la fecha limpia
+        dateString.take(10)
+    } catch (e: Exception) {
+        dateString
+    }
+}
