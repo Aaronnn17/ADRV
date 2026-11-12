@@ -28,7 +28,7 @@ def clean_image_url(image_url, base_feed_url=""):
             image_url = image_url[1:]
         image_url = f"{base_url}/{image_url}"
     
-    # Limpieza de proxy y recorte de WordPress (-350x250.jpg -> .jpg) para foto original
+    # Limpiamos la URL que viene de Google Translate y quitamos recortes -350x250
     image_url = image_url.replace("unionrayo-es.translate.goog", "unionrayo.es")
     if "wp-content/uploads" in image_url:
         image_url = image_url.split("?")[0]
@@ -54,7 +54,7 @@ def get_og_image(article_url):
     return ""
 
 def fetch_union_rayo_browser():
-    print("=== EXTRAYENDO UNIÓN RAYO (ENTRADA DIRECTA CON PLAYWRIGHT) ===")
+    print("=== EXTRAYENDO UNIÓN RAYO (PUERTA TRASERA DE GOOGLE) ===")
     news_items = []
     try:
         rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
@@ -65,9 +65,8 @@ def fetch_union_rayo_browser():
             if data.get("status") == "ok":
                 items = data.get("items", [])
                 
-                # Lanzamos el navegador real como hicimos en la plantilla
                 with sync_playwright() as p:
-                    browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-blink-features=AutomationControlled"])
+                    browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
                     context = browser.new_context(
                         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
                     )
@@ -92,21 +91,15 @@ def fetch_union_rayo_browser():
 
                         image_url = ""
 
-                        # 1. EL NAVEGADOR ENTRA FÍSICAMENTE EN LA NOTICIA
+                        # 1. ENTRADA DIRECTA POR GOOGLE TRANSLATE (IGNORANDO LA URL OFICIAL PARA EVITAR TIMEOUT)
                         if link:
                             try:
-                                # Entrada directa al artículo
-                                page.goto(link, wait_until="domcontentloaded", timeout=15000)
+                                parsed = urllib.parse.urlparse(link)
+                                bridge_url = f"https://unionrayo-es.translate.goog{parsed.path}?_x_tr_sl=auto&_x_tr_tl=es&_x_tr_hl=es"
+                                
+                                page.goto(bridge_url, wait_until="domcontentloaded", timeout=15000)
                                 page.wait_for_timeout(1000)
                                 
-                                # Si Cloudflare frena a Playwright, usamos la puerta trasera de Google para esta noticia
-                                if "Bot Verification" in page.title() or "Just a moment" in page.title():
-                                    parsed = urllib.parse.urlparse(link)
-                                    bridge_url = f"https://unionrayo-es.translate.goog{parsed.path}?_x_tr_sl=auto&_x_tr_tl=es&_x_tr_hl=es"
-                                    page.goto(bridge_url, wait_until="domcontentloaded", timeout=15000)
-                                    page.wait_for_timeout(1000)
-                                
-                                # Leemos la foto directamente de las etiquetas de la página cargada
                                 img_extracted = page.evaluate("""() => {
                                     const meta = document.querySelector('meta[property="og:image"], meta[property="og:image:secure_url"]');
                                     if (meta && meta.content && meta.content.includes('wp-content/uploads')) return meta.content;
@@ -116,12 +109,11 @@ def fetch_union_rayo_browser():
                                     
                                     return '';
                                 }""")
-                                
                                 image_url = clean_image_url(img_extracted, "https://unionrayo.es")
                             except Exception as e:
-                                print(f"   [Fallo al entrar en {title[:20]}...]: {e}")
+                                print(f"   [Fallo al cargar proxy en {title[:20]}...]: {e}")
 
-                        # 2. Respaldo (por si acaso viniera incrustada en el código fuente RSS)
+                        # 2. Respaldo por si venía en el HTML del RSS
                         if not image_url and content_html:
                             img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
                             if img_match and "wp-content/uploads" in img_match.group(1):
