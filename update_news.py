@@ -2,8 +2,6 @@ import xml.etree.ElementTree as ET
 import urllib.parse
 import json
 import re
-import difflib
-import unicodedata
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 import cloudscraper
@@ -16,17 +14,7 @@ FEEDS = [
     {"url": "https://matagigantes.net/feed/", "fuente": "Matagigantes"}
 ]
 
-scraper = cloudscraper.create_scraper(browser={
-    'browser': 'chrome',
-    'platform': 'windows',
-    'mobile': False
-})
-
-def normalize_text(text):
-    if not text:
-        return ""
-    text = unicodedata.normalize('NFKD', str(text)).encode('ASCII', 'ignore').decode('utf-8')
-    return re.sub(r'[^a-z0-9\s]', '', text.lower()).strip()
+scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
 
 def clean_image_url(image_url, base_feed_url=""):
     if not image_url:
@@ -40,11 +28,10 @@ def clean_image_url(image_url, base_feed_url=""):
             image_url = image_url[1:]
         image_url = f"{base_url}/{image_url}"
     
-    # Si la imagen viene con el dominio del puente de Google, la devolvemos al dominio original de Unión Rayo
+    # Limpiamos la URL que viene de Google Translate y quitamos recortes -350x250
     image_url = image_url.replace("unionrayo-es.translate.goog", "unionrayo.es")
     if "wp-content/uploads" in image_url:
         image_url = image_url.split("?")[0]
-        # Quitamos el recorte pequeño de WordPress (ej. -350x250.jpg -> .jpg) para tener máxima calidad
         image_url = re.sub(r'-\d+x\d+\.(jpg|jpeg|png|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
 
     image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
@@ -66,151 +53,8 @@ def get_og_image(article_url):
         pass
     return ""
 
-def scrape_union_rayo_playwright(items_rss):
-    """Usa exactamente el mismo método Playwright + Scroll de update_squad.py para cazar las fotos de Unión Rayo"""
-    by_slug = {}
-    by_title = {}
-
-    # 1. Abrimos la portada y las secciones de Unión Rayo a través del puente de Google (evita Bot Verification)
-    urls_portada = [
-        "https://unionrayo-es.translate.goog/?_x_tr_sl=auto&_x_tr_tl=es&_x_tr_hl=es",
-        "https://unionrayo.es/"
-    ]
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-blink-features=AutomationControlled"])
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            viewport={"width": 1440, "height": 900}
-        )
-        page = context.new_page()
-
-        for target_url in urls_portada:
-            try:
-                print(f" -> Abriendo Chromium en: {target_url[:45]}...")
-                page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
-                page.wait_for_timeout(2500)
-
-                if "Bot Verification" in page.title() or "Just a moment" in page.title():
-                    print("    [Saltando URL por Bot Verification, usando puente Google...]")
-                    continue
-
-                # Mismo scroll progresivo de update_squad.py para despertar el Lazy Loading de JNews
-                page.evaluate("""async () => {
-                    await new Promise((resolve) => {
-                        let totalHeight = 0;
-                        let distance = 400;
-                        let timer = setInterval(() => {
-                            let scrollHeight = document.body.scrollHeight;
-                            window.scrollBy(0, distance);
-                            totalHeight += distance;
-                            if (totalHeight >= scrollHeight || totalHeight > 6000) {
-                                clearInterval(timer);
-                                resolve();
-                            }
-                        }, 150);
-                    });
-                }""")
-                page.wait_for_timeout(2000)
-
-                # Extraemos todas las tarjetas de noticias del DOM (jeg_slide_item y jeg_post) igual que en squad
-                cards = page.evaluate("""() => {
-                    const results = [];
-                    
-                    // 1. Carrusel superior (div.jeg_slide_item con style background-image)
-                    document.querySelectorAll('.jeg_slide_item').forEach(slide => {
-                        const style = slide.getAttribute('style') || '';
-                        const bgMatch = style.match(/url\\(['"]?([^'"\\)]+)['"]?\\)/i);
-                        const a = slide.querySelector('a[href]');
-                        const titleEl = slide.querySelector('.jeg_post_title, h2, h3');
-                        if (bgMatch && a) {
-                            results.push({
-                                href: a.href,
-                                title: titleEl ? titleEl.innerText.trim() : a.innerText.trim(),
-                                photo: bgMatch[1]
-                            });
-                        }
-                    });
-
-                    // 2. Tarjetas de noticias (.jeg_post, article)
-                    document.querySelectorAll('.jeg_post, article').forEach(post => {
-                        const titleLink = post.querySelector('.jeg_post_title a, h2 a, h3 a') || post.querySelector('a[href]');
-                        if (!titleLink) return;
-                        
-                        let photo = '';
-                        const img = post.querySelector('img');
-                        if (img) {
-                            photo = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.currentSrc || img.src || '';
-                            if (photo.includes(' ') || photo.includes(',')) {
-                                photo = photo.split(',')[0].trim().split(' ')[0];
-                            }
-                        }
-                        if (!photo || photo.startsWith('data:')) {
-                            const styleEl = post.querySelector('[style*="background-image"]');
-                            if (styleEl) {
-                                const m = styleEl.getAttribute('style').match(/url\\(['"]?([^'"\\)]+)['"]?\\)/i);
-                                if (m) photo = m[1];
-                            }
-                        }
-
-                        if (photo && !photo.startsWith('data:')) {
-                            results.push({
-                                href: titleLink.href,
-                                title: titleLink.innerText.trim(),
-                                photo: photo
-                            });
-                        }
-                    });
-
-                    return results;
-                }""")
-
-                for c in cards:
-                    photo_clean = clean_image_url(c.get("photo", ""), "https://unionrayo.es")
-                    if not photo_clean:
-                        continue
-                    href = c.get("href", "").split("?")[0].rstrip("/")
-                    slug = href.split("/")[-1]
-                    if slug:
-                        by_slug[slug] = photo_clean
-                    norm_t = normalize_text(c.get("title", ""))
-                    if norm_t:
-                        by_title[norm_t] = photo_clean
-
-                print(f" -> Tarjetas de noticias leídas en DOM con foto: {len(by_slug)}")
-                if len(by_slug) >= 5:
-                    break
-            except Exception as e:
-                print(f" -> Aviso en portada Playwright: {e}")
-
-        # 2. Si alguna de las 10 noticias del RSS no estaba en portada, la abrimos en el mismo navegador vía puente Google
-        for item in items_rss:
-            link = item.get("link", "")
-            slug = link.rstrip("/").split("/")[-1]
-            if slug and slug not in by_slug:
-                try:
-                    parsed = urllib.parse.urlparse(link)
-                    bridge_article = f"https://unionrayo-es.translate.goog{parsed.path}?_x_tr_sl=auto&_x_tr_tl=es&_x_tr_hl=es"
-                    page.goto(bridge_article, wait_until="domcontentloaded", timeout=15000)
-                    page.wait_for_timeout(1200)
-                    og = page.evaluate("""() => {
-                        const m = document.querySelector('meta[property="og:image"], meta[name="twitter:image"]');
-                        if (m && m.content && m.content.includes('wp-content/uploads')) return m.content;
-                        const feat = document.querySelector('.jeg_featured img, .entry-header img, img[src*="wp-content/uploads"]');
-                        return feat ? (feat.getAttribute('data-src') || feat.currentSrc || feat.src || '') : '';
-                    }""")
-                    og_clean = clean_image_url(og, "https://unionrayo.es")
-                    if og_clean:
-                        by_slug[slug] = og_clean
-                except Exception:
-                    pass
-
-        browser.close()
-
-    return by_slug, by_title
-
 def fetch_union_rayo_browser():
-    print("=== EXTRAYENDO UNIÓN RAYO (MÉTODO PLAYWRIGHT SQUAD) ===")
+    print("=== EXTRAYENDO UNIÓN RAYO (PUERTA TRASERA DE GOOGLE) ===")
     news_items = []
     try:
         rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
@@ -220,60 +64,80 @@ def fetch_union_rayo_browser():
             data = res.json()
             if data.get("status") == "ok":
                 items = data.get("items", [])
-                by_slug, by_title = scrape_union_rayo_playwright(items)
                 
-                for item in items:
-                    title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
-                    link = item.get("link", "")
-                    slug = link.rstrip("/").split("/")[-1]
-                    norm_title = normalize_text(title)
+                with sync_playwright() as p:
+                    browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+                    context = browser.new_context(
+                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                    )
+                    page = context.new_page()
+
+                    for item in items:
+                        title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
+                        link = item.get("link", "")
+                        
+                        raw_date = item.get("pubDate", "")
+                        pub_date = raw_date
+                        if raw_date:
+                            try:
+                                dt = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S")
+                                pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
+                            except Exception:
+                                pass
+
+                        raw_desc = item.get("description", "")
+                        description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
+                        content_html = item.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
+
+                        image_url = ""
+
+                        # 1. ENTRADA DIRECTA POR GOOGLE TRANSLATE (IGNORANDO LA URL OFICIAL PARA EVITAR TIMEOUT)
+                        if link:
+                            try:
+                                parsed = urllib.parse.urlparse(link)
+                                bridge_url = f"https://unionrayo-es.translate.goog{parsed.path}?_x_tr_sl=auto&_x_tr_tl=es&_x_tr_hl=es"
+                                
+                                page.goto(bridge_url, wait_until="domcontentloaded", timeout=15000)
+                                page.wait_for_timeout(1000)
+                                
+                                img_extracted = page.evaluate("""() => {
+                                    const meta = document.querySelector('meta[property="og:image"], meta[property="og:image:secure_url"]');
+                                    if (meta && meta.content && meta.content.includes('wp-content/uploads')) return meta.content;
+                                    
+                                    const feat = document.querySelector('.jeg_featured img, .wp-post-image, img[src*="wp-content/uploads"]');
+                                    if (feat) return feat.getAttribute('data-src') || feat.currentSrc || feat.src;
+                                    
+                                    return '';
+                                }""")
+                                image_url = clean_image_url(img_extracted, "https://unionrayo.es")
+                            except Exception as e:
+                                print(f"   [Fallo al cargar proxy en {title[:20]}...]: {e}")
+
+                        # 2. Respaldo por si venía en el HTML del RSS
+                        if not image_url and content_html:
+                            img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                            if img_match and "wp-content/uploads" in img_match.group(1):
+                                image_url = clean_image_url(img_match.group(1), "https://unionrayo.es")
+
+                        print(f"   * [{title[:38]}...] -> {'OK: ' + image_url.split('/')[-1] if image_url else 'SIN FOTO'}")
+                        
+                        categories = item.get("categories")
+                        if not isinstance(categories, list) or not categories:
+                            categories = ["Unión Rayo"]
+
+                        news_items.append({
+                            "id": item.get("guid", link),
+                            "title": title,
+                            "link": link,
+                            "published": pub_date,
+                            "summary": description,
+                            "content": content_html,
+                            "categories": categories,
+                            "image": image_url,
+                            "fuente": "Unión Rayo"
+                        })
                     
-                    raw_date = item.get("pubDate", "")
-                    pub_date = raw_date
-                    if raw_date:
-                        try:
-                            dt = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S")
-                            pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
-                        except Exception:
-                            pass
-
-                    raw_desc = item.get("description", "")
-                    description = BeautifulSoup(raw_desc, "html.parser").text
-                    description = description.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
-                    content_html = item.get("content", "").replace('loading="lazy"', '').replace("loading='lazy'", "")
-
-                    # 1. Emparejamiento exacto por slug de la URL o Fuzzy Matching por título (igual que en update_squad.py)
-                    image_url = by_slug.get(slug, "")
-                    if not image_url and norm_title in by_title:
-                        image_url = by_title[norm_title]
-                    if not image_url and by_title:
-                        matches = difflib.get_close_matches(norm_title, by_title.keys(), n=1, cutoff=0.6)
-                        if matches:
-                            image_url = by_title[matches[0]]
-
-                    # 2. Respaldo si venía dentro del HTML del RSS
-                    if not image_url and content_html:
-                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
-                        if img_match and "wp-content/uploads" in img_match.group(1):
-                            image_url = clean_image_url(img_match.group(1), "https://unionrayo.es")
-
-                    print(f"   * [{title[:38]}...] -> {'OK: ' + image_url.split('/')[-1] if image_url else 'SIN FOTO'}")
-                    
-                    categories = item.get("categories")
-                    if not isinstance(categories, list) or not categories:
-                        categories = ["Unión Rayo"]
-
-                    news_items.append({
-                        "id": item.get("guid", link),
-                        "title": title,
-                        "link": link,
-                        "published": pub_date,
-                        "summary": description,
-                        "content": content_html,
-                        "categories": categories,
-                        "image": image_url,
-                        "fuente": "Unión Rayo"
-                    })
+                    browser.close()
                 
                 con_foto = sum(1 for n in news_items if n["image"])
                 print(f" -> ¡COMPLETADO! {len(news_items)} noticias de Unión Rayo guardadas ({con_foto} con foto real).")
