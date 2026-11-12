@@ -1,5 +1,11 @@
 package com.example.adrv.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -57,88 +63,107 @@ fun NoticiasScreen() {
 
     val sources = listOf("Todos", "Rayo Vallecano", "Unión Rayo", "Bukaneros", "Matagigantes")
 
-    if (selectedNewsUrl != null) {
-        WebViewScreen(
-            url = selectedNewsUrl!!,
-            title = selectedNewsTitle,
-            onBackClick = {
-                selectedNewsUrl = null
-                selectedNewsTitle = ""
-            }
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+    // TRANSICIÓN ANIMADA ENTRE LISTA Y VISOR WEB
+    AnimatedContent(
+        targetState = selectedNewsUrl,
+        transitionSpec = {
+            if (targetState != null) {
+                // Al abrir la noticia: Sube desde abajo
+                slideInVertically(initialOffsetY = { fullHeight -> fullHeight }) + fadeIn() togetherWith
+                        fadeOut()
             } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item {
-                        Spacer(modifier = Modifier.height(4.dp))
+                // Al cerrar la noticia: Baja y desaparece
+                fadeIn() togetherWith
+                        slideOutVertically(targetOffsetY = { fullHeight -> fullHeight }) + fadeOut()
+            }
+        },
+        label = "TransicionNoticias"
+    ) { currentUrl ->
+        if (currentUrl != null) {
+            // VISOR WEB ANIMADO
+            WebViewScreen(
+                url = currentUrl,
+                title = selectedNewsTitle,
+                onBackClick = {
+                    selectedNewsUrl = null
+                    selectedNewsTitle = ""
+                }
+            )
+        } else {
+            // PORTADA DE NOTICIAS ORIGINAL (Lista y Filtros)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
                     }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
 
-                    // Filtros horizontales
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            sources.forEach { source ->
-                                val isSelected = (selectedSource == source)
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { selectedSource = source },
-                                    label = { Text(text = source, fontWeight = FontWeight.Bold) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                        selectedLabelColor = Color.White,
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                    ),
-                                    shape = RoundedCornerShape(50.dp)
+                        // Filtros horizontales
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                sources.forEach { source ->
+                                    val isSelected = (selectedSource == source)
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { selectedSource = source },
+                                        label = { Text(text = source, fontWeight = FontWeight.Bold) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                            selectedLabelColor = Color.White,
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        ),
+                                        shape = RoundedCornerShape(50.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        if (filteredNews.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 80.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = "No hay noticias para este medio", color = Color.Gray, fontSize = 14.sp)
+                                }
+                            }
+                        } else {
+                            items(filteredNews) { item ->
+                                ModernNewsCard(
+                                    item = item,
+                                    onClick = {
+                                        if (item.link.isNotEmpty()) {
+                                            selectedNewsUrl = item.link
+                                            selectedNewsTitle = item.title
+                                        }
+                                    }
                                 )
                             }
                         }
-                    }
 
-                    if (filteredNews.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 80.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = "No hay noticias para este medio", color = Color.Gray, fontSize = 14.sp)
-                            }
-                        }
-                    } else {
-                        items(filteredNews) { item ->
-                            ModernNewsCard(
-                                item = item,
-                                onClick = {
-                                    if (item.link.isNotEmpty()) {
-                                        selectedNewsUrl = item.link
-                                        selectedNewsTitle = item.title
-                                    }
-                                }
-                            )
-                        }
+                        item { Spacer(modifier = Modifier.height(24.dp)) }
                     }
-
-                    item { Spacer(modifier = Modifier.height(24.dp)) }
                 }
             }
         }

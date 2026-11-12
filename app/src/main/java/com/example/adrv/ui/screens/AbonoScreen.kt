@@ -17,10 +17,16 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,18 +66,24 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -106,7 +118,6 @@ fun AbonoScreen(
     var showSourceSelector by remember { mutableStateOf(false) }
     var showCameraScanner by remember { mutableStateOf(false) }
 
-    // Procesador de la imagen extraída (Cámara o Galería)
     fun processImageUri(uri: Uri) {
         val path = storage.savePhotoFromUri(uri, isFront = true)
         if (path != null) {
@@ -153,13 +164,11 @@ fun AbonoScreen(
             .padding(16.dp)
     ) {
         if (abonoData.barcodeNumber.isBlank()) {
-            // ESTADO VACÍO (PLANTILLA GRIS DIRECTA)
             Spacer(modifier = Modifier.height(32.dp))
             AbonoEmptyState(
                 onScanClick = { showSourceSelector = true }
             )
         } else {
-            // ESTADO CON ABONO: Botones arriba + Tarjeta
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -188,7 +197,6 @@ fun AbonoScreen(
         }
     }
 
-    // Modal para elegir entre Cámara o Galería
     if (showSourceSelector) {
         ModalBottomSheet(onDismissRequest = { showSourceSelector = false }) {
             Column(
@@ -268,9 +276,6 @@ fun AbonoScreen(
     }
 }
 
-// ----------------------------------------------------
-// UI: Plantilla de Estado Vacío
-// ----------------------------------------------------
 @Composable
 fun AbonoEmptyState(onScanClick: () -> Unit) {
     Card(
@@ -328,83 +333,223 @@ fun AbonoEmptyState(onScanClick: () -> Unit) {
     }
 }
 
-// ----------------------------------------------------
-// UI: Tarjeta Física Digitalizada (La que ya tenías)
-// ----------------------------------------------------
+@Composable
+fun EmptyPasePlaceholder() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.AddPhotoAlternate,
+            contentDescription = null,
+            tint = Color.Gray,
+            modifier = Modifier.size(56.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Tu Pase 2D no está listo",
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Pulsa el botón de abajo y sube la foto delantera de tu carnet.",
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
 @Composable
 fun OfficialPhysicalCardPass2D(data: AbonoData, onClick: () -> Unit = {}) {
+    if (data.barcodeNumber.isBlank()) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(0.60f)
+                .clickable { onClick() },
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            EmptyPasePlaceholder()
+        }
+        return
+    }
+
+    var isPressed by remember { mutableStateOf(false) }
+    var touchX by remember { mutableFloatStateOf(0.5f) }
+    var touchY by remember { mutableFloatStateOf(0.5f) }
+
+    val rotationX by animateFloatAsState(
+        targetValue = if (isPressed) (touchY - 0.5f) * -25f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "rotX"
+    )
+    val rotationY by animateFloatAsState(
+        targetValue = if (isPressed) (touchX - 0.5f) * 25f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "rotY"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "scale"
+    )
+    val glareAlpha by animateFloatAsState(
+        targetValue = if (isPressed) 0.6f else 0f,
+        animationSpec = tween(durationMillis = 150),
+        label = "glare"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(0.60f)
-            .clickable { onClick() },
+            .graphicsLayer {
+                this.rotationX = rotationX
+                this.rotationY = rotationY
+                this.scaleX = scale
+                this.scaleY = scale
+                this.cameraDistance = 16f * density
+            }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    isPressed = true
+                    var moved = false
+                    val width = size.width.toFloat()
+                    val height = size.height.toFloat()
+
+                    touchX = (down.position.x / width).coerceIn(0f, 1f)
+                    touchY = (down.position.y / height).coerceIn(0f, 1f)
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.first()
+                        if (change.positionChange().getDistance() > 3f) moved = true
+
+                        touchX = (change.position.x / width).coerceIn(0f, 1f)
+                        touchY = (change.position.y / height).coerceIn(0f, 1f)
+
+                    } while (event.changes.any { it.pressed })
+
+                    isPressed = false
+                    if (!moved) {
+                        onClick()
+                    }
+                }
+            },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFE5E7EB)),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 20.dp, start = 24.dp, end = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                    Text(text = "26", fontWeight = FontWeight.Black, fontSize = 42.sp, color = Color(0xFF1E293B))
-                    Text(text = "⚡", fontSize = 42.sp, color = RayoRed)
-                    Text(text = "27", fontWeight = FontWeight.Black, fontSize = 42.sp, color = Color(0xFF1E293B))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 20.dp, start = 24.dp, end = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(text = "26", fontWeight = FontWeight.Black, fontSize = 42.sp, color = Color(0xFF1E293B))
+                        Text(text = "⚡", fontSize = 42.sp, color = RayoRed)
+                        Text(text = "27", fontWeight = FontWeight.Black, fontSize = 42.sp, color = Color(0xFF1E293B))
+                    }
+                    Text(
+                        text = "ABONO RAYO VALLECANO DE MADRID",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        color = Color.Gray
+                    )
                 }
-                Text(
-                    text = "ABONO RAYO VALLECANO DE MADRID",
-                    fontSize = 8.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp,
-                    color = Color.Gray
-                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                ) {
+                    Text(text = "ABONADO Nº : ${data.abonadoNo.ifBlank { "----" }}", fontWeight = FontWeight.Black, fontSize = 17.sp, color = Color.Black)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = data.nombre.uppercase().ifBlank { "NOMBRE" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                    Text(text = data.apellidos.uppercase().ifBlank { "APELLIDOS" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "PUERTAS : ${data.puertas.ifBlank { "--" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                    Text(text = data.grada.uppercase().ifBlank { "SECTOR" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = "FILA: ${data.fila.ifBlank { "-" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                        Text(text = "ASIENTO: ${data.asiento.ifBlank { "-" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = data.categoria.uppercase().ifBlank { "ADULTO" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                        Text(text = data.codigoSocio.uppercase().ifBlank { "------" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(RayoRed)
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = data.temporada.uppercase().ifBlank { "TEMPORADA 2026/2027" },
+                        fontWeight = FontWeight.Black,
+                        fontSize = 15.sp,
+                        color = Color.White,
+                        letterSpacing = 1.sp
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    BarcodeImage(
+                        text = data.barcodeNumber,
+                        modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .height(64.dp)
+                    )
+                }
             }
 
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-                Text(text = "ABONADO Nº : ${data.abonadoNo.ifBlank { "----" }}", fontWeight = FontWeight.Black, fontSize = 17.sp, color = Color.Black)
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(text = data.nombre.uppercase().ifBlank { "NOMBRE" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
-                Text(text = data.apellidos.uppercase().ifBlank { "APELLIDOS" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "PUERTAS : ${data.puertas.ifBlank { "--" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
-                Text(text = data.grada.uppercase().ifBlank { "SECTOR" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(text = "FILA: ${data.fila.ifBlank { "-" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
-                    Text(text = "ASIENTO: ${data.asiento.ifBlank { "-" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(text = data.categoria.uppercase().ifBlank { "ADULTO" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
-                    Text(text = data.codigoSocio.uppercase().ifBlank { "------" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
-                }
-            }
+            if (glareAlpha > 0f) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val gradientX = touchX * size.width
+                    val gradientY = touchY * size.height
 
-            Box(
-                modifier = Modifier.fillMaxWidth().background(RayoRed).padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = data.temporada.uppercase().ifBlank { "TEMPORADA 2026/2027" }, fontWeight = FontWeight.Black, fontSize = 15.sp, color = Color.White, letterSpacing = 1.sp)
-            }
-
-            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                BarcodeImage(text = data.barcodeNumber, modifier = Modifier.fillMaxWidth(0.9f).height(64.dp))
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = data.sponsorText.uppercase().ifBlank { "DIGI" }, fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp, color = Color(0xFF0F265C))
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color.White.copy(alpha = glareAlpha), Color.Transparent),
+                            center = Offset(gradientX, gradientY),
+                            radius = size.width * 0.9f
+                        )
+                    )
+                }
             }
         }
     }
 }
 
-// ----------------------------------------------------
-// LÓGICA Y VISTA: Escáner de Cámara Integrado con Marco
-// ----------------------------------------------------
 @Composable
 fun CameraScannerDialog(onImageCaptured: (Uri) -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -419,7 +564,6 @@ fun CameraScannerDialog(onImageCaptured: (Uri) -> Unit, onDismiss: () -> Unit) {
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            // 1. Vista de la Cámara
             AndroidView(
                 factory = { ctx ->
                     val previewView = PreviewView(ctx)
@@ -445,44 +589,39 @@ fun CameraScannerDialog(onImageCaptured: (Uri) -> Unit, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxSize()
             )
 
-            // 2. Máscara oscura con el marco recortado (VERSIÓN VERTICAL)
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val canvasWidth = size.width
                 val canvasHeight = size.height
-
-                // Calculamos el tamaño para un carnet VERTICAL
-                val cardHeight = canvasHeight * 0.65f // Ocupa el 65% del alto de la pantalla
-                val cardWidth = cardHeight * 0.63f    // Proporción estándar de tarjeta (ancho más estrecho)
+                val cardHeight = canvasHeight * 0.65f
+                val cardWidth = cardHeight * 0.63f
                 val left = (canvasWidth - cardWidth) / 2
-                val top = (canvasHeight - cardHeight) / 3 // Un poco por encima del centro para dejar hueco al botón
+                val top = (canvasHeight - cardHeight) / 3
 
-                val path = androidx.compose.ui.graphics.Path().apply {
-                    addRect(androidx.compose.ui.geometry.Rect(0f, 0f, canvasWidth, canvasHeight))
+                val path = Path().apply {
+                    addRect(Rect(0f, 0f, canvasWidth, canvasHeight))
                     addRoundRect(
-                        androidx.compose.ui.geometry.RoundRect(
-                            rect = androidx.compose.ui.geometry.Rect(left, top, left + cardWidth, top + cardHeight),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx(), 16.dp.toPx())
+                        RoundRect(
+                            rect = Rect(left, top, left + cardWidth, top + cardHeight),
+                            cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx())
                         )
                     )
-                    fillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
+                    fillType = PathFillType.EvenOdd
                 }
 
                 drawPath(path, Color.Black.copy(alpha = 0.75f))
                 drawRoundRect(
                     color = Color.White,
-                    topLeft = androidx.compose.ui.geometry.Offset(left, top),
+                    topLeft = Offset(left, top),
                     size = androidx.compose.ui.geometry.Size(cardWidth, cardHeight),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx(), 16.dp.toPx()),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
+                    cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
+                    style = Stroke(width = 3.dp.toPx())
                 )
             }
 
-            // 3. Botón de Cancelar Arriba Izquierda
             IconButton(onClick = onDismiss, modifier = Modifier.padding(32.dp).align(Alignment.TopStart)) {
                 Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(32.dp))
             }
 
-            // 4. Instrucción de encuadre
             Text(
                 text = "Encuadra la parte frontal del abono\ndentro del marco",
                 color = Color.White,
@@ -491,7 +630,6 @@ fun CameraScannerDialog(onImageCaptured: (Uri) -> Unit, onDismiss: () -> Unit) {
                 modifier = Modifier.align(Alignment.Center).padding(top = 220.dp)
             )
 
-            // 5. Botón de captura Inferior
             Button(
                 onClick = {
                     val photoFile = File.createTempFile("abono_scan", ".jpg", context.cacheDir)
@@ -502,7 +640,6 @@ fun CameraScannerDialog(onImageCaptured: (Uri) -> Unit, onDismiss: () -> Unit) {
                         object : ImageCapture.OnImageSavedCallback {
                             override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                                 val savedUri = Uri.fromFile(photoFile)
-                                // Cambiamos al hilo principal para UI
                                 ContextCompat.getMainExecutor(context).execute {
                                     onImageCaptured(savedUri)
                                 }
@@ -513,10 +650,7 @@ fun CameraScannerDialog(onImageCaptured: (Uri) -> Unit, onDismiss: () -> Unit) {
                         }
                     )
                 },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 64.dp)
-                    .size(80.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp).size(80.dp),
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(containerColor = RayoRed)
             ) {
@@ -526,9 +660,6 @@ fun CameraScannerDialog(onImageCaptured: (Uri) -> Unit, onDismiss: () -> Unit) {
     }
 }
 
-// ----------------------------------------------------
-// OTROS DIÁLOGOS (Edición y Vista Completa)
-// ----------------------------------------------------
 @Composable
 fun EditAbonoDialog(
     data: AbonoData,
@@ -600,6 +731,101 @@ fun EditAbonoDialog(
     )
 }
 
+// Versión estática y totalmente rígida del carnet, perfecta para el lector del torno
+@Composable
+fun StaticPhysicalCardPass2D(data: AbonoData, onClick: () -> Unit = {}) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.60f)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE5E7EB)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp, start = 24.dp, end = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(text = "26", fontWeight = FontWeight.Black, fontSize = 42.sp, color = Color(0xFF1E293B))
+                    Text(text = "⚡", fontSize = 42.sp, color = RayoRed)
+                    Text(text = "27", fontWeight = FontWeight.Black, fontSize = 42.sp, color = Color(0xFF1E293B))
+                }
+                Text(
+                    text = "ABONO RAYO VALLECANO DE MADRID",
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp,
+                    color = Color.Gray
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+            ) {
+                Text(text = "ABONADO Nº : ${data.abonadoNo.ifBlank { "----" }}", fontWeight = FontWeight.Black, fontSize = 17.sp, color = Color.Black)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(text = data.nombre.uppercase().ifBlank { "NOMBRE" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                Text(text = data.apellidos.uppercase().ifBlank { "APELLIDOS" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "PUERTAS : ${data.puertas.ifBlank { "--" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                Text(text = data.grada.uppercase().ifBlank { "SECTOR" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(text = "FILA: ${data.fila.ifBlank { "-" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                    Text(text = "ASIENTO: ${data.asiento.ifBlank { "-" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(text = data.categoria.uppercase().ifBlank { "ADULTO" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                    Text(text = data.codigoSocio.uppercase().ifBlank { "------" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(RayoRed)
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = data.temporada.uppercase().ifBlank { "TEMPORADA 2026/2027" },
+                    fontWeight = FontWeight.Black,
+                    fontSize = 15.sp,
+                    color = Color.White,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                BarcodeImage(
+                    text = data.barcodeNumber,
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .height(64.dp)
+                )
+            }
+        }
+    }
+}
 @Composable
 fun FullScreenAbonoDialog(data: AbonoData, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -630,7 +856,8 @@ fun FullScreenAbonoDialog(data: AbonoData, onDismiss: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
-                OfficialPhysicalCardPass2D(data = data, onClick = onDismiss)
+                // AQUÍ ESTÁ EL CAMBIO: Usamos la versión estática y rígida
+                StaticPhysicalCardPass2D(data = data, onClick = onDismiss)
             }
         }
     }

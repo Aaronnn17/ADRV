@@ -1,6 +1,18 @@
 package com.example.adrv.ui.screens
 
 import android.content.Context
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -187,136 +199,154 @@ fun HoyScreen() {
         }
     }
 
-    // SI HAY UNA URL SELECCIONADA, MOSTRAMOS EL VISOR WEB. SI NO, MOSTRAMOS LA PORTADA
-    if (selectedNewsUrl != null) {
-        WebViewScreen(
-            url = selectedNewsUrl!!,
-            title = selectedNewsTitle,
-            onBackClick = {
-                selectedNewsUrl = null
-                selectedNewsTitle = ""
+    // TRANSICIÓN ANIMADA ENTRE PORTADA Y VISOR WEB
+    AnimatedContent(
+        targetState = selectedNewsUrl,
+        transitionSpec = {
+            if (targetState != null) {
+                // Al entrar a la noticia: sube desde abajo y aparece
+                slideInVertically(initialOffsetY = { fullHeight -> fullHeight }) + fadeIn() togetherWith
+                        fadeOut()
+            } else {
+                // Al cerrar la noticia: baja hacia abajo y desaparece
+                fadeIn() togetherWith
+                        slideOutVertically(targetOffsetY = { fullHeight -> fullHeight }) + fadeOut()
             }
-        )
-    } else {
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { refreshData() },
-            state = refreshState,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    RayoHeader(
-                        onNotificationClick = {
-                            if (unreadCount > 0) showNotificationsDialog = true
-                        },
-                        unreadCount = unreadCount
-                    )
+        },
+        label = "NavegacionNoticias"
+    ) { currentUrl ->
+        if (currentUrl != null) {
+            // MOSTRAMOS EL VISOR WEB ANIMADO
+            WebViewScreen(
+                url = currentUrl,
+                title = selectedNewsTitle,
+                onBackClick = {
+                    selectedNewsUrl = null
+                    selectedNewsTitle = ""
+                }
+            )
+        } else {
+            // MOSTRAMOS LA PORTADA ORIGINAL
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { refreshData() },
+                state = refreshState,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        RayoHeader(
+                            onNotificationClick = {
+                                if (unreadCount > 0) showNotificationsDialog = true
+                            },
+                            unreadCount = unreadCount
+                        )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    if (isLoading) {
-                        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                        }
-                    } else if (nextMatch != null) {
-                        NextMatchCard(match = nextMatch)
+                        if (isLoading) {
+                            Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            }
+                        } else if (nextMatch != null) {
+                            NextMatchCard(match = nextMatch)
 
-                        if (novedadesHistorial.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(24.dp))
+                            if (novedadesHistorial.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(24.dp))
 
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Text(
-                                    text = "Últimas Novedades",
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 18.sp,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-                                )
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = "Últimas Novedades",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 18.sp,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                                    )
 
-                                novedadesHistorial.forEach { novedad ->
-                                    val parts = novedad.split("|", limit = 3)
-                                    val type = parts.getOrNull(0) ?: ""
-                                    val id = parts.getOrNull(1) ?: ""
-                                    val text = parts.getOrNull(2) ?: novedad
+                                    novedadesHistorial.forEach { novedad ->
+                                        val parts = novedad.split("|", limit = 3)
+                                        val type = parts.getOrNull(0) ?: ""
+                                        val id = parts.getOrNull(1) ?: ""
+                                        val text = parts.getOrNull(2) ?: novedad
 
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp)
-                                            .bounceClick {
-                                                if (type == "NEWS") {
-                                                    val newsItem = newsData?.find { it.id == id }
-                                                    if (newsItem != null && newsItem.link.isNotEmpty()) {
-                                                        selectedNewsUrl = newsItem.link
-                                                        selectedNewsTitle = newsItem.title
-                                                    }
-                                                } else if (type == "MATCH") {
-                                                    selectedMatchForDialog = rayoData?.partidos?.find { it.id.toString() == id }
-                                                } else {
-                                                    if (text.contains("noticia", ignoreCase = true)) {
-                                                        val titulo = text.substringAfter(":").trim()
-                                                        val newsItem = newsData?.find { it.title.contains(titulo, ignoreCase = true) }
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp)
+                                                .bounceClick {
+                                                    if (type == "NEWS") {
+                                                        val newsItem = newsData?.find { it.id == id }
                                                         if (newsItem != null && newsItem.link.isNotEmpty()) {
                                                             selectedNewsUrl = newsItem.link
                                                             selectedNewsTitle = newsItem.title
                                                         }
+                                                    } else if (type == "MATCH") {
+                                                        selectedMatchForDialog = rayoData?.partidos?.find { it.id.toString() == id }
+                                                    } else {
+                                                        if (text.contains("noticia", ignoreCase = true)) {
+                                                            val titulo = text.substringAfter(":").trim()
+                                                            val newsItem = newsData?.find { it.title.contains(titulo, ignoreCase = true) }
+                                                            if (newsItem != null && newsItem.link.isNotEmpty()) {
+                                                                selectedNewsUrl = newsItem.link
+                                                                selectedNewsTitle = newsItem.title
+                                                            }
+                                                        }
                                                     }
-                                                }
-                                            },
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
-                                        shape = RoundedCornerShape(12.dp),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(16.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                                },
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                                            shape = RoundedCornerShape(12.dp),
+                                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                                         ) {
-                                            Icon(Icons.Default.Star, contentDescription = null, tint = RayoRed, modifier = Modifier.size(20.dp))
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                            Row(
+                                                modifier = Modifier.padding(16.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(Icons.Default.Star, contentDescription = null, tint = RayoRed, modifier = Modifier.size(20.dp))
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                            }
                                         }
                                     }
                                 }
                             }
+                        } else {
+                            Text("No hay datos de partidos disponibles", color = Color.Gray)
                         }
-                    } else {
-                        Text("No hay datos de partidos disponibles", color = Color.Gray)
+
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
-
-                if (showNotificationsDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showNotificationsDialog = false },
-                        title = {
-                            Text(text = "🔔 Novedades ADRV", fontWeight = FontWeight.Bold)
-                        },
-                        text = {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                dynamicNotifications.forEach { notification ->
-                                    val textToShow = notification.split("|", limit = 3).getOrNull(2) ?: notification
-                                    Text(text = "• $textToShow")
+                    if (showNotificationsDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showNotificationsDialog = false },
+                            title = {
+                                Text(text = "🔔 Novedades ADRV", fontWeight = FontWeight.Bold)
+                            },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    dynamicNotifications.forEach { notification ->
+                                        val textToShow = notification.split("|", limit = 3).getOrNull(2) ?: notification
+                                        Text(text = "• $textToShow")
+                                    }
                                 }
-                            }
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                showNotificationsDialog = false
-                                dynamicNotifications = emptyList()
-                            }) {
-                                Text(text = "Entendido", color = MaterialTheme.colorScheme.primary)
-                            }
-                        },
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(20.dp)
-                    )
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    showNotificationsDialog = false
+                                    dynamicNotifications = emptyList()
+                                }) {
+                                    Text(text = "Entendido", color = MaterialTheme.colorScheme.primary)
+                                }
+                            },
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                    }
                 }
             }
         }
@@ -480,6 +510,18 @@ fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
         }
     }
 
+    // ANIMACIÓN DE PULSO CONTINUO
+    val infiniteTransition = rememberInfiniteTransition(label = "PulseTransition")
+    val scalePulse by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.06f, // Crece un 6% suavemente
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000), // 1 segundo por ciclo
+            repeatMode = RepeatMode.Reverse // Va y viene
+        ),
+        label = "PulseScale"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -530,11 +572,13 @@ fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // APLICAMOS EL PULSO AQUÍ: El texto "Próximo partido" respirará suavemente
             Text(
                 text = "Próximo partido",
                 fontSize = 13.sp,
-                color = Color.Gray,
-                fontWeight = FontWeight.Medium
+                color = RayoRed, // Lo ponemos en rojo corporativo para que resalte más con el pulso
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.scale(scalePulse)
             )
 
             Spacer(modifier = Modifier.height(20.dp))
