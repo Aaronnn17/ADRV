@@ -24,6 +24,11 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -148,12 +153,16 @@ fun EquipoScreen() {
 // ----------------------------------------------------
 // VISTA 1: CALENDARIO
 // ----------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarioView() {
     var rayoData by remember { mutableStateOf<RayoData?>(null) }
     var currentMonth by remember { mutableStateOf(YearMonth.now(ZoneId.of("Europe/Madrid"))) }
 
     val scrollState = rememberScrollState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var selectedMatchForModal by remember { mutableStateOf<ApiMatch?>(null) }
 
     LaunchedEffect(Unit) {
         rayoData = RayoRepository.fetchRayoData()
@@ -175,9 +184,6 @@ fun CalendarioView() {
 
     val today = LocalDate.now(ZoneId.of("Europe/Madrid"))
     var selectedDate by remember { mutableStateOf(today) }
-    var userSelectedMatch by remember { mutableStateOf<ApiMatch?>(null) }
-
-    val activeMatch = userSelectedMatch ?: matchesByDate[today]
 
     Column(
         modifier = Modifier
@@ -265,7 +271,7 @@ fun CalendarioView() {
                                     onClick = {
                                         selectedDate = date
                                         if (matchOnThisDay != null) {
-                                            userSelectedMatch = matchOnThisDay
+                                            selectedMatchForModal = matchOnThisDay
                                         }
                                     }
                                 )
@@ -276,28 +282,18 @@ fun CalendarioView() {
                     if (currentDay > daysInMonth) break
                 }
             }
+        }
+    }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // PANEL DETALLES CON ANIMACIÓN DE TRANSICIÓN SUAVE
-            AnimatedContent(
-                targetState = activeMatch,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                },
-                label = "MatchPanelAnimation"
-            ) { targetMatch ->
-                if (targetMatch != null) {
-                    Column {
-                        MatchDetailsPanel(targetMatch)
-                        Spacer(modifier = Modifier.height(32.dp))
-                    }
-                } else {
-                    Spacer(modifier = Modifier.height(32.dp))
-                }
-            }
+    // MODAL BOTTOM SHEET PARA EL DETALLE DEL PARTIDO
+    selectedMatchForModal?.let { match ->
+        ModalBottomSheet(
+            onDismissRequest = { selectedMatchForModal = null },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            MatchDetailsPanelContent(match = match)
         }
     }
 }
@@ -316,7 +312,7 @@ fun DayCell(
             .padding(4.dp)
             .clip(CircleShape)
             .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
-            .bounceClick { if (match != null) onClick() },
+            .bounceClick { if (match != null) onClick() else onClick() },
         contentAlignment = Alignment.Center
     ) {
         if (match != null) {
@@ -358,106 +354,81 @@ fun DayCell(
 }
 
 @Composable
-fun MatchDetailsPanel(match: ApiMatch) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(16.dp)
+fun MatchDetailsPanelContent(match: ApiMatch) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Text(text = match.competition, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(text = match.round, fontWeight = FontWeight.Black, fontSize = 18.sp)
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = match.competition, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
-            Text(text = match.round, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(0.35f)) {
+                AsyncImage(model = match.homeLogoUrl, contentDescription = match.homeTeam, modifier = Modifier.size(65.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = match.homeTeam, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(0.3f)
-                ) {
-                    AsyncImage(model = match.homeLogoUrl, contentDescription = match.homeTeam, modifier = Modifier.size(50.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = match.homeTeam,
-                        fontWeight = FontWeight.SemiBold,
-                        textAlign = TextAlign.Center,
-                        fontSize = 12.sp,
-                        minLines = 2, maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Box(
-                    modifier = Modifier.weight(0.4f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (match.status == "FINISHED" && match.homeScore != null && match.awayScore != null) {
+            Box(modifier = Modifier.weight(0.3f), contentAlignment = Alignment.Center) {
+                if (match.status == "FINISHED" && match.homeScore != null && match.awayScore != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "${match.homeScore} - ${match.awayScore}",
-                            fontSize = 32.sp,
+                            fontSize = 36.sp,
                             fontWeight = FontWeight.Black,
-                            textAlign = TextAlign.Center
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-                    } else {
-                        Text(
-                            text = "VS",
-                            color = Color.Gray,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Black
-                        )
+                        Text(text = "Final", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
                     }
-                }
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(0.3f)
-                ) {
-                    AsyncImage(model = match.awayLogoUrl, contentDescription = match.awayTeam, modifier = Modifier.size(50.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = match.awayTeam,
-                        fontWeight = FontWeight.SemiBold,
-                        textAlign = TextAlign.Center,
-                        fontSize = 12.sp,
-                        minLines = 2, maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                } else {
+                    Text(text = "VS", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color.Gray.copy(alpha = 0.5f))
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
-            Spacer(modifier = Modifier.height(16.dp))
-
-            MatchInfoRow(label = "Competición", value = match.competition)
-            MatchInfoRow(label = "Jornada", value = match.round)
-            MatchInfoRow(label = "Fecha", value = formatSpanishDateOnly(match.dateText))
-            MatchInfoRow(label = "Hora local", value = formatSpanishTimeOnly(match.dateText))
-
-            if (!match.venue.isNullOrEmpty() && match.venue != "Estadio Visitante") {
-                MatchInfoRow(label = "Estadio", value = match.venue)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(0.35f)) {
+                AsyncImage(model = match.awayLogoUrl, contentDescription = match.awayTeam, modifier = Modifier.size(65.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = match.awayTeam, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            if (!match.referee.isNullOrEmpty() && match.referee != "Por designar") {
-                MatchInfoRow(label = "Árbitro", value = match.referee)
-            }
+        }
 
-            val estadoTraducido = when (match.statusApi) {
-                "FINISHED", "AWARDED" -> "Finalizado"
-                "IN_PLAY", "PAUSED" -> "En juego"
-                "POSTPONED", "SUSPENDED" -> "Aplazado"
-                "CANCELLED" -> "Cancelado"
-                else -> "Por disputar"
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                MatchInfoRow(label = "Fecha", value = formatSpanishDateOnly(match.dateText))
+                MatchInfoRow(label = "Hora local", value = formatSpanishTimeOnly(match.dateText))
+
+                if (!match.venue.isNullOrEmpty() && match.venue != "Estadio Visitante") {
+                    MatchInfoRow(label = "Estadio", value = match.venue!!)
+                }
+                if (!match.referee.isNullOrEmpty() && match.referee != "Por designar") {
+                    MatchInfoRow(label = "Árbitro", value = match.referee!!)
+                }
+
+                val estadoTraducido = when (match.statusApi) {
+                    "FINISHED", "AWARDED" -> "Finalizado"
+                    "IN_PLAY", "PAUSED" -> "En juego"
+                    "POSTPONED", "SUSPENDED" -> "Aplazado"
+                    "CANCELLED" -> "Cancelado"
+                    else -> "Por disputar"
+                }
+                HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+                MatchInfoRow(label = "Estado", value = estadoTraducido)
             }
-            MatchInfoRow(label = "Estado", value = estadoTraducido)
         }
     }
 }
@@ -465,13 +436,11 @@ fun MatchDetailsPanel(match: ApiMatch) {
 @Composable
 fun MatchInfoRow(label: String, value: String) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(text = label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
-        Text(text = value, fontWeight = FontWeight.Medium, fontSize = 14.sp, textAlign = TextAlign.End)
+        Text(text = value, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.End)
     }
 }
 
@@ -498,10 +467,12 @@ fun formatSpanishTimeOnly(dateString: String): String {
 // ----------------------------------------------------
 // VISTA 2: CLASIFICACIÓN (DISEÑO UEFA / DESCENSO)
 // ----------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClasificacionView() {
     var standingsData by remember { mutableStateOf<ApiStandingsData?>(null) }
     var selectedTeam by remember { mutableStateOf<ApiStanding?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(Unit) {
         standingsData = RayoRepository.fetchStandingsData()
@@ -527,7 +498,7 @@ fun ClasificacionView() {
                             .padding(bottom = 4.dp, start = 8.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Spacer(modifier = Modifier.width(4.dp)) // Espacio para la barra de color
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text("Pos", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.weight(0.12f))
                         Text("Club", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.weight(0.38f))
                         Text("Pts", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.11f))
@@ -556,15 +527,9 @@ fun ClasificacionView() {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(IntrinsicSize.Min) // Para que la barra lateral ocupe todo el alto
+                                .height(IntrinsicSize.Min)
                         ) {
-                            // Barra lateral de color UEFA/Descenso
-                            Box(
-                                modifier = Modifier
-                                    .width(4.dp)
-                                    .fillMaxHeight()
-                                    .background(zoneColor)
-                            )
+                            Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(zoneColor))
 
                             Row(
                                 modifier = Modifier
@@ -596,7 +561,6 @@ fun ClasificacionView() {
                     }
                 }
 
-                // LEYENDA UEFA / DESCENSO
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
                     StandingsLegendFooter()
@@ -604,29 +568,46 @@ fun ClasificacionView() {
                 }
             }
 
-            // MODAL EQUIPO (Igual que el tuyo)
+            // MODAL BOTTOM SHEET (ESTÉTICO Y FLUIDO)
             selectedTeam?.let { team ->
-                AlertDialog(
+                ModalBottomSheet(
                     onDismissRequest = { selectedTeam = null },
-                    confirmButton = { TextButton(onClick = { selectedTeam = null }) { Text("Cerrar") } },
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            AsyncImage(model = team.crest, contentDescription = null, modifier = Modifier.size(32.dp).padding(end = 12.dp))
-                            Text(text = team.teamName, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            HorizontalDivider()
-                            TeamDetailRow(label = "Posición en la tabla", value = "${team.position}º")
-                            TeamDetailRow(label = "Puntos", value = "${team.points}")
-                            TeamDetailRow(label = "Partidos Jugados", value = "${team.playedGames}")
-                            TeamDetailRow(label = "Goles a Favor", value = "${team.goalsFor}")
-                            TeamDetailRow(label = "Goles en Contra", value = "${team.goalsAgainst}")
-                            TeamDetailRow(label = "Diferencia", value = if (team.goalDifference > 0) "+${team.goalDifference}" else "${team.goalDifference}")
+                    sheetState = sheetState,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    dragHandle = { BottomSheetDefaults.DragHandle() }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 16.dp)
+                            .padding(bottom = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        AsyncImage(model = team.crest, contentDescription = null, modifier = Modifier.size(70.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(text = team.teamName, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                        Text(text = "${team.position}º Clasificado", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                TeamDetailRow(label = "Puntos", value = "${team.points}")
+                                TeamDetailRow(label = "Partidos Jugados", value = "${team.playedGames}")
+                                TeamDetailRow(label = "Victorias", value = "${team.won}")
+                                TeamDetailRow(label = "Empates", value = "${team.draw}")
+                                TeamDetailRow(label = "Derrotas", value = "${team.lost}")
+                                HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+                                TeamDetailRow(label = "Goles a Favor", value = "${team.goalsFor}")
+                                TeamDetailRow(label = "Goles en Contra", value = "${team.goalsAgainst}")
+                                TeamDetailRow(label = "Diferencia de Goles", value = if (team.goalDifference > 0) "+${team.goalDifference}" else "${team.goalDifference}")
+                            }
                         }
                     }
-                )
+                }
             }
         }
     }
@@ -634,10 +615,10 @@ fun ClasificacionView() {
 
 @Composable
 fun getStandingsZoneColor(position: Int): Color = when (position) {
-    in 1..4 -> Color(0xFF66BB6A)   // Champions League (Verde)
-    5 -> Color(0xFF7E57C2)         // Europa League (Morado)
-    6 -> Color(0xFFFFB300)         // Conference League (Ambar)
-    in 18..20 -> Color(0xFFEF5350) // Descenso (Rojo)
+    in 1..4 -> Color(0xFF1E3A8A)   // Champions (Azul oscuro)
+    5 -> Color(0xFF0284C7)         // Europa League (Azul claro)
+    6 -> Color(0xFFEA580C)         // Conference (Naranja)
+    in 18..20 -> Color(0xFFDC2626) // Descenso (Rojo)
     else -> Color.Transparent
 }
 
@@ -650,12 +631,12 @@ fun StandingsLegendFooter() {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            LegendItem(color = Color(0xFF66BB6A), label = "Champions")
-            LegendItem(color = Color(0xFF7E57C2), label = "Europa League")
+            LegendItem(color = Color(0xFF1E3A8A), label = "Champions")
+            LegendItem(color = Color(0xFF0284C7), label = "Europa League")
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            LegendItem(color = Color(0xFFFFB300), label = "Conference")
-            LegendItem(color = Color(0xFFEF5350), label = "Descenso")
+            LegendItem(color = Color(0xFFEA580C), label = "Conference")
+            LegendItem(color = Color(0xFFDC2626), label = "Descenso")
         }
     }
 }
@@ -680,14 +661,15 @@ fun TeamDetailRow(label: String, value: String) {
     }
 }
 
-
 // ----------------------------------------------------
 // VISTA 3: PLANTILLA (DISEÑO CROMOS INTERACTIVOS)
 // ----------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlantillaView() {
     var squadData by remember { mutableStateOf<ApiSquadData?>(null) }
     var selectedPlayer by remember { mutableStateOf<ApiPlayerDetail?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(Unit) {
         squadData = RayoRepository.fetchSquadData()
@@ -712,7 +694,7 @@ fun PlantillaView() {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Row(
@@ -762,7 +744,6 @@ fun PlantillaView() {
                             )
                         }
 
-                        // Chunk de 2 en 2 para hacer un Grid falso
                         val rows = playersInPos.chunked(2)
                         items(rows) { rowPlayers ->
                             Row(
@@ -776,7 +757,6 @@ fun PlantillaView() {
                                         onClick = { selectedPlayer = player }
                                     )
                                 }
-                                // Relleno si la fila es impar
                                 if (rowPlayers.size == 1) {
                                     Spacer(modifier = Modifier.weight(1f))
                                 }
@@ -788,36 +768,60 @@ fun PlantillaView() {
                 item { Spacer(modifier = Modifier.height(24.dp)) }
             }
 
-            // MODAL DETALLE JUGADOR
+            // MODAL BOTTOM SHEET JUGADOR MINIMALISTA
             selectedPlayer?.let { player ->
-                AlertDialog(
+                ModalBottomSheet(
                     onDismissRequest = { selectedPlayer = null },
-                    confirmButton = {
-                        TextButton(onClick = { selectedPlayer = null }) { Text("Cerrar") }
-                    },
-                    title = {
-                        Text(text = player.displayName ?: player.name, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            if (!player.photo.isNullOrEmpty()) {
-                                AsyncImage(
-                                    model = player.photo,
-                                    contentDescription = player.name,
-                                    modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(12.dp))
-                                )
+                    sheetState = sheetState,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    dragHandle = { BottomSheetDefaults.DragHandle() }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (!player.photo.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = player.photo,
+                                contentDescription = player.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(140.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            )
+                        } else {
+                            Box(modifier = Modifier.size(140.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                                Text(text = player.shirtNumber?.toString() ?: "-", fontSize = 48.sp, fontWeight = FontWeight.Black, color = Color.Gray)
                             }
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                            TeamDetailRow("Nombre completo", player.name)
-                            TeamDetailRow("Posición", player.positionEs ?: translatePosition(player.position).dropLast(1))
-                            TeamDetailRow("Nacionalidad", "${getFlagEmoji(player.countryCode)} ${player.nationality}")
-                            if (!player.dateOfBirth.isNullOrEmpty()) {
-                                TeamDetailRow("Edad", "${calculateAge(player.dateOfBirth)} años")
-                                TeamDetailRow("Nacimiento", formatSpanishDateOnly(player.dateOfBirth))
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(text = player.displayName ?: player.name, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                        Text(text = player.positionEs ?: translatePosition(player.position).dropLast(1), fontSize = 16.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                TeamDetailRow("Nombre completo", player.name)
+                                TeamDetailRow("Dorsal", player.shirtNumber?.toString() ?: "-")
+                                TeamDetailRow("Nacionalidad", "${getFlagEmoji(player.countryCode)} ${player.nationality}")
+                                if (!player.dateOfBirth.isNullOrEmpty()) {
+                                    TeamDetailRow("Edad", "${calculateAge(player.dateOfBirth)} años")
+                                    TeamDetailRow("Nacimiento", formatSpanishDateOnly(player.dateOfBirth))
+                                }
                             }
                         }
                     }
-                )
+                }
             }
         }
     }
@@ -835,7 +839,6 @@ fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onCl
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // FOTO GRANDE
             if (!player.photo.isNullOrEmpty()) {
                 AsyncImage(
                     model = player.photo,
@@ -849,7 +852,6 @@ fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onCl
                 }
             }
 
-            // DEGRADADO INFERIOR
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -862,7 +864,6 @@ fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onCl
                     )
             )
 
-            // PÍLDORA BANDERA Y EDAD ARRIBA
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -879,7 +880,6 @@ fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onCl
                 }
             }
 
-            // DATOS ABAJO (DORSAL GIGANTE + NOMBRE)
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
