@@ -1,10 +1,26 @@
 package com.example.adrv.ui.screens
 
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.util.Log
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,48 +34,65 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import com.example.adrv.data.AbonoStorage
 import com.example.adrv.data.BarcodeAnalyzer
 import com.example.adrv.model.AbonoData
 import com.example.adrv.ui.components.BarcodeImage
 import com.example.adrv.ui.components.bounceClick
 import com.example.adrv.ui.theme.RayoRed
-import android.app.Activity
-import android.view.WindowManager
-import androidx.compose.foundation.clickable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AbonoScreen(
     modifier: Modifier = Modifier
@@ -67,33 +100,48 @@ fun AbonoScreen(
     val context = LocalContext.current
     val storage = remember { AbonoStorage(context) }
     var abonoData by remember { mutableStateOf(storage.loadAbonoData()) }
+
     var showEditDialog by remember { mutableStateOf(false) }
     var showFullScreenAbono by remember { mutableStateOf(false) }
+    var showSourceSelector by remember { mutableStateOf(false) }
+    var showCameraScanner by remember { mutableStateOf(false) }
 
-    val frontPhotoLauncher = rememberLauncherForActivityResult(
+    // Procesador de la imagen extraída (Cámara o Galería)
+    fun processImageUri(uri: Uri) {
+        val path = storage.savePhotoFromUri(uri, isFront = true)
+        if (path != null) {
+            abonoData = abonoData.copy(frontPhotoPath = path)
+            Toast.makeText(context, "Escaneando datos del abono...", Toast.LENGTH_SHORT).show()
+
+            BarcodeAnalyzer.analyzeImage(
+                context = context,
+                imageUri = uri,
+                currentData = abonoData,
+                onResult = { newData ->
+                    abonoData = newData
+                    storage.saveAbonoData(abonoData)
+                    Toast.makeText(context, "¡Datos completados con éxito!", Toast.LENGTH_LONG).show()
+                },
+                onFailure = {
+                    Toast.makeText(context, "Error al escanear. Rellena los datos a mano.", Toast.LENGTH_LONG).show()
+                }
+            )
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        uri?.let {
-            val path = storage.savePhotoFromUri(it, isFront = true)
-            if (path != null) {
-                abonoData = abonoData.copy(frontPhotoPath = path)
+        uri?.let { processImageUri(it) }
+    }
 
-                Toast.makeText(context, "Escaneando datos del abono...", Toast.LENGTH_SHORT).show()
-
-                BarcodeAnalyzer.analyzeImage(
-                    context = context,
-                    imageUri = it,
-                    currentData = abonoData,
-                    onResult = { newData ->
-                        abonoData = newData
-                        storage.saveAbonoData(abonoData)
-                        Toast.makeText(context, "¡Datos completados con éxito!", Toast.LENGTH_LONG).show()
-                    },
-                    onFailure = {
-                        Toast.makeText(context, "Error al escanear. Rellena los datos a mano.", Toast.LENGTH_LONG).show()
-                    }
-                )
-            }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            showCameraScanner = true
+        } else {
+            Toast.makeText(context, "Se necesita permiso de cámara para escanear el abono", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -104,97 +152,100 @@ fun AbonoScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        // Header Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Abono Digital",
-                    fontWeight = FontWeight.Black,
-                    fontSize = 22.sp,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "Carnet Socio Rayo Vallecano · Acceso a Torno",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            IconButton(onClick = { showEditDialog = true }) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Editar Abono",
-                    tint = RayoRed
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Digital Pass
-        OfficialPhysicalCardPass2D(
-            data = abonoData,
-            onClick = {
-                // Solo se amplía si hay un código de barras válido guardado
-                if (abonoData.barcodeNumber.isNotBlank()) {
-                    showFullScreenAbono = true
+        if (abonoData.barcodeNumber.isBlank()) {
+            // ESTADO VACÍO (PLANTILLA GRIS DIRECTA)
+            Spacer(modifier = Modifier.height(32.dp))
+            AbonoEmptyState(
+                onScanClick = { showSourceSelector = true }
+            )
+        } else {
+            // ESTADO CON ABONO: Botones arriba + Tarjeta
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(
+                    onClick = { showSourceSelector = true },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                ) {
+                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Repetir Foto", tint = MaterialTheme.colorScheme.onSurface)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                IconButton(
+                    onClick = { showEditDialog = true },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = "Editar Datos", tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
-        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+            OfficialPhysicalCardPass2D(
+                data = abonoData,
+                onClick = { showFullScreenAbono = true }
+            )
+        }
+    }
 
-        // Uploader Action Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
+    // Modal para elegir entre Cámara o Galería
+    if (showSourceSelector) {
+        ModalBottomSheet(onDismissRequest = { showSourceSelector = false }) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "Genera tu pase desde el carnet físico",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Sube la foto de tu carnet. La app escaneará tu código de barras y datos automáticamente para generar tu Pase 2D.",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text("¿Cómo quieres subir tu abono?", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Spacer(modifier = Modifier.height(24.dp))
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clickable {
+                                showSourceSelector = false
+                                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                                    showCameraScanner = true
+                                } else {
+                                    permissionLauncher.launch(Manifest.permission.CAMERA)
+                                }
+                            }
+                            .padding(16.dp)
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = "Cámara", tint = RayoRed, modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Usar Cámara", fontWeight = FontWeight.Medium)
+                    }
 
-                Button(
-                    onClick = {
-                        frontPhotoLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .bounceClick { },
-                    colors = ButtonDefaults.buttonColors(containerColor = RayoRed),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (abonoData.barcodeNumber.isNotBlank()) "Actualizar Abono" else "Escanear Abono",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clickable {
+                                showSourceSelector = false
+                                galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            }
+                            .padding(16.dp)
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = "Galería", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Abrir Galería", fontWeight = FontWeight.Medium)
+                    }
                 }
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
+    }
+
+    if (showCameraScanner) {
+        CameraScannerDialog(
+            onImageCaptured = { uri ->
+                showCameraScanner = false
+                processImageUri(uri)
+            },
+            onDismiss = { showCameraScanner = false }
+        )
     }
 
     if (showFullScreenAbono) {
@@ -217,50 +268,91 @@ fun AbonoScreen(
     }
 }
 
-// Replica estilizada del carnet (Estilo Premium 3D / Wallet) fiel al físico
+// ----------------------------------------------------
+// UI: Plantilla de Estado Vacío
+// ----------------------------------------------------
+@Composable
+fun AbonoEmptyState(onScanClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.60f),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.CreditCard,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = Color.Gray
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Tu Pase 2D no está listo",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Pulsa el botón de abajo y encuadra la foto delantera de tu carnet. La app extraerá tus datos al instante.",
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = onScanClick,
+                colors = ButtonDefaults.buttonColors(containerColor = RayoRed),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .height(50.dp)
+                    .bounceClick {}
+            ) {
+                Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Escanear Abono", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------
+// UI: Tarjeta Física Digitalizada (La que ya tenías)
+// ----------------------------------------------------
 @Composable
 fun OfficialPhysicalCardPass2D(data: AbonoData, onClick: () -> Unit = {}) {
-    if (data.barcodeNumber.isBlank()) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(0.60f)
-                .clickable { onClick() },
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            EmptyPasePlaceholder()
-        }
-        return
-    }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(0.60f)
             .clickable { onClick() },
         shape = RoundedCornerShape(18.dp),
-        // Gris claro para simular el plástico y destacar el blanco del código de barras
         colors = CardDefaults.cardColors(containerColor = Color(0xFFE5E7EB)),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        // En lugar de un padding global, usamos padding por secciones para que el rojo llegue al borde
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // --- 1. CABECERA (LOGO 26/27) ---
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 20.dp, start = 24.dp, end = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                     Text(text = "26", fontWeight = FontWeight.Black, fontSize = 42.sp, color = Color(0xFF1E293B))
                     Text(text = "⚡", fontSize = 42.sp, color = RayoRed)
                     Text(text = "27", fontWeight = FontWeight.Black, fontSize = 42.sp, color = Color(0xFF1E293B))
@@ -274,144 +366,169 @@ fun OfficialPhysicalCardPass2D(data: AbonoData, onClick: () -> Unit = {}) {
                 )
             }
 
-            // --- 2. DATOS DEL ABONADO (Alineados a la izquierda como el original) ---
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-            ) {
-                Text(
-                    text = "ABONADO Nº : ${data.abonadoNo.ifBlank { "----" }}",
-                    fontWeight = FontWeight.Black,
-                    fontSize = 17.sp,
-                    color = Color.Black
-                )
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+                Text(text = "ABONADO Nº : ${data.abonadoNo.ifBlank { "----" }}", fontWeight = FontWeight.Black, fontSize = 17.sp, color = Color.Black)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = data.nombre.uppercase().ifBlank { "NOMBRE" },
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = Color.Black
-                )
-                Text(
-                    text = data.apellidos.uppercase().ifBlank { "APELLIDOS" },
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = Color.Black
-                )
+                Text(text = data.nombre.uppercase().ifBlank { "NOMBRE" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                Text(text = data.apellidos.uppercase().ifBlank { "APELLIDOS" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "PUERTAS : ${data.puertas.ifBlank { "--" }}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = Color.Black
-                )
-                Text(
-                    text = data.grada.uppercase().ifBlank { "SECTOR" },
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = Color.Black
-                )
+                Text(text = "PUERTAS : ${data.puertas.ifBlank { "--" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
+                Text(text = data.grada.uppercase().ifBlank { "SECTOR" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
                 Spacer(modifier = Modifier.height(4.dp))
-
-                // Fila de Fila y Asiento
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(text = "FILA: ${data.fila.ifBlank { "-" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
                     Text(text = "ASIENTO: ${data.asiento.ifBlank { "-" }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
                 }
-
                 Spacer(modifier = Modifier.height(2.dp))
-
-                // Fila de Categoría y Código de socio (Adulto / U03CCA)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(text = data.categoria.uppercase().ifBlank { "ADULTO" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
                     Text(text = data.codigoSocio.uppercase().ifBlank { "------" }, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.Black)
                 }
             }
 
-            // --- 3. FRANJA ROJA (Ocupa el 100% del ancho) ---
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(RayoRed)
-                    .padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().background(RayoRed).padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = data.temporada.uppercase().ifBlank { "TEMPORADA 2026/2027" },
-                    fontWeight = FontWeight.Black,
-                    fontSize = 15.sp,
-                    color = Color.White,
-                    letterSpacing = 1.sp
-                )
+                Text(text = data.temporada.uppercase().ifBlank { "TEMPORADA 2026/2027" }, fontWeight = FontWeight.Black, fontSize = 15.sp, color = Color.White, letterSpacing = 1.sp)
             }
 
-            // --- 4. CÓDIGO DE BARRAS ---
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                BarcodeImage(
-                    text = data.barcodeNumber,
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .height(64.dp)
-                )
-
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                BarcodeImage(text = data.barcodeNumber, modifier = Modifier.fillMaxWidth(0.9f).height(64.dp))
                 Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = data.sponsorText.uppercase().ifBlank { "DIGI" },
-                    fontWeight = FontWeight.Black,
-                    fontSize = 18.sp,
-                    letterSpacing = 2.sp,
-                    color = Color(0xFF0F265C)
-                )
+                Text(text = data.sponsorText.uppercase().ifBlank { "DIGI" }, fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp, color = Color(0xFF0F265C))
             }
         }
     }
 }
 
+// ----------------------------------------------------
+// LÓGICA Y VISTA: Escáner de Cámara Integrado con Marco
+// ----------------------------------------------------
 @Composable
-fun EmptyPasePlaceholder() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+fun CameraScannerDialog(onImageCaptured: (Uri) -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+    val imageCapture = remember { ImageCapture.Builder().build() }
+    val executor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
-        Icon(
-            imageVector = Icons.Default.AddPhotoAlternate,
-            contentDescription = null,
-            tint = Color.Gray,
-            modifier = Modifier.size(56.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Tu Pase 2D no está listo",
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Pulsa el botón de abajo y sube la foto delantera de tu carnet. La app extraerá tus datos al instante.",
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            // 1. Vista de la Cámara
+            AndroidView(
+                factory = { ctx ->
+                    val previewView = PreviewView(ctx)
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        val preview = Preview.Builder().build().also {
+                            it.setSurfaceProvider(previewView.surfaceProvider)
+                        }
+                        try {
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                preview,
+                                imageCapture
+                            )
+                        } catch (exc: Exception) {
+                            Log.e("Camera", "Error al iniciar la cámara", exc)
+                        }
+                    }, ContextCompat.getMainExecutor(ctx))
+                    previewView
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // 2. Máscara oscura con el marco recortado (VERSIÓN VERTICAL)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val canvasWidth = size.width
+                val canvasHeight = size.height
+
+                // Calculamos el tamaño para un carnet VERTICAL
+                val cardHeight = canvasHeight * 0.65f // Ocupa el 65% del alto de la pantalla
+                val cardWidth = cardHeight * 0.63f    // Proporción estándar de tarjeta (ancho más estrecho)
+                val left = (canvasWidth - cardWidth) / 2
+                val top = (canvasHeight - cardHeight) / 3 // Un poco por encima del centro para dejar hueco al botón
+
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    addRect(androidx.compose.ui.geometry.Rect(0f, 0f, canvasWidth, canvasHeight))
+                    addRoundRect(
+                        androidx.compose.ui.geometry.RoundRect(
+                            rect = androidx.compose.ui.geometry.Rect(left, top, left + cardWidth, top + cardHeight),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx(), 16.dp.toPx())
+                        )
+                    )
+                    fillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
+                }
+
+                drawPath(path, Color.Black.copy(alpha = 0.75f))
+                drawRoundRect(
+                    color = Color.White,
+                    topLeft = androidx.compose.ui.geometry.Offset(left, top),
+                    size = androidx.compose.ui.geometry.Size(cardWidth, cardHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx(), 16.dp.toPx()),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
+                )
+            }
+
+            // 3. Botón de Cancelar Arriba Izquierda
+            IconButton(onClick = onDismiss, modifier = Modifier.padding(32.dp).align(Alignment.TopStart)) {
+                Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(32.dp))
+            }
+
+            // 4. Instrucción de encuadre
+            Text(
+                text = "Encuadra la parte frontal del abono\ndentro del marco",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center).padding(top = 220.dp)
+            )
+
+            // 5. Botón de captura Inferior
+            Button(
+                onClick = {
+                    val photoFile = File.createTempFile("abono_scan", ".jpg", context.cacheDir)
+                    val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+                    imageCapture.takePicture(
+                        outputOptions,
+                        executor,
+                        object : ImageCapture.OnImageSavedCallback {
+                            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                val savedUri = Uri.fromFile(photoFile)
+                                // Cambiamos al hilo principal para UI
+                                ContextCompat.getMainExecutor(context).execute {
+                                    onImageCaptured(savedUri)
+                                }
+                            }
+                            override fun onError(exc: ImageCaptureException) {
+                                Log.e("Camera", "Error al guardar foto: ${exc.message}", exc)
+                            }
+                        }
+                    )
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 64.dp)
+                    .size(80.dp),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = RayoRed)
+            ) {
+                Icon(Icons.Default.CameraAlt, contentDescription = "Hacer Foto", tint = Color.White, modifier = Modifier.size(36.dp))
+            }
+        }
     }
 }
 
+// ----------------------------------------------------
+// OTROS DIÁLOGOS (Edición y Vista Completa)
+// ----------------------------------------------------
 @Composable
 fun EditAbonoDialog(
     data: AbonoData,
@@ -484,22 +601,16 @@ fun EditAbonoDialog(
 }
 
 @Composable
-fun FullScreenAbonoDialog(
-    data: AbonoData,
-    onDismiss: () -> Unit
-) {
+fun FullScreenAbonoDialog(data: AbonoData, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val activity = context as? Activity
 
-    // Este efecto sube el brillo al máximo al abrirse y lo restaura al cerrarse
     DisposableEffect(Unit) {
         val window = activity?.window
         val originalBrightness = window?.attributes?.screenBrightness
-
         window?.attributes = window?.attributes?.apply {
             screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
         }
-
         onDispose {
             window?.attributes = window?.attributes?.apply {
                 screenBrightness = originalBrightness ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
@@ -509,24 +620,16 @@ fun FullScreenAbonoDialog(
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false, // Permite ocupar toda la pantalla
-            decorFitsSystemWindows = false
-        )
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.90f)) // Fondo oscuro casi opaco
-                .clickable { onDismiss() }, // Si tocas fuera o dentro, se cierra
+                .background(Color.Black.copy(alpha = 0.90f))
+                .clickable { onDismiss() },
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-            ) {
-                // Reutilizamos tu diseño exacto, pero solo para mostrar
+            Box(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
                 OfficialPhysicalCardPass2D(data = data, onClick = onDismiss)
             }
         }
