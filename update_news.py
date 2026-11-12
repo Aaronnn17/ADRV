@@ -5,10 +5,9 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 import cloudscraper
 
-# Hemos añadido Unión Rayo directamente a la lista normal de feeds
+# Dejamos Unión Rayo fuera de esta lista para tratarlo con su bypass especial
 FEEDS = [
     {"url": "https://www.rayovallecano.es/rss", "fuente": "Oficial"},
-    {"url": "https://unionrayo.es/feed/", "fuente": "Unión Rayo"},
     {"url": "https://bukaneros.org/feed/", "fuente": "Bukaneros"},
     {"url": "https://matagigantes.net/feed/", "fuente": "Matagigantes"}
 ]
@@ -41,6 +40,56 @@ def clean_image_url(image_url, base_feed_url="", strip_sizes=True):
         clean_url = image_url.replace("https://", "").replace("http://", "")
         image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
     return image_url
+
+def fetch_union_rayo_bypassed():
+    print("Obteniendo RSS de Unión Rayo (Bypass rss2json)...")
+    news_items = []
+    try:
+        rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
+        res = scraper.get(rss2json_url, timeout=15)
+
+        if res.status_code != 200 or res.json().get("status") != "ok":
+            print(" -> Fallo al obtener Unión Rayo vía rss2json.")
+            return news_items
+
+        items = res.json().get("items", [])
+        for item in items:
+            title = item.get("title", "")
+            link = item.get("link", "")
+            guid = item.get("guid", link)
+            
+            raw_date = item.get("pubDate", "")
+            pub_date = raw_date
+            if raw_date:
+                try:
+                    pub_date = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S").strftime("%a, %d %b %Y %H:%M:%S +0000")
+                except Exception:
+                    pass
+
+            raw_desc = item.get("description", "")
+            description = re.sub(r'<[^>]+>', '', raw_desc).replace("Leer más", "").replace("[...]", "").strip()
+            content_html = item.get("content", "")
+
+            image_url = item.get("thumbnail") or (item.get("enclosure") or {}).get("link", "")
+            if not image_url and content_html:
+                img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                if img_match:
+                    image_url = img_match.group(1)
+
+            image_url = clean_image_url(image_url, strip_sizes=False)
+
+            news_items.append({
+                "id": guid, "title": title, "link": link, "published": pub_date,
+                "summary": description, "content": content_html, "categories": item.get("categories", ["Unión Rayo"]),
+                "image": image_url, "fuente": "Unión Rayo"
+            })
+
+        con_foto = sum(1 for n in news_items if n["image"])
+        print(f" -> {len(news_items)} noticias procesadas ({con_foto} con foto).")
+    except Exception as e:
+        print(f"Error crítico en Unión Rayo: {e}")
+
+    return news_items
 
 def fetch_and_parse_feed(feed_info):
     print(f"Obteniendo RSS de {feed_info['fuente']}...")
@@ -99,6 +148,11 @@ def fetch_and_parse_feed(feed_info):
 
 def update_news():
     all_news = []
+    
+    # 1. Obtenemos Unión Rayo con bypass
+    all_news.extend(fetch_union_rayo_bypassed())
+    
+    # 2. Obtenemos el resto normalmente
     for feed in FEEDS:
         all_news.extend(fetch_and_parse_feed(feed))
 
