@@ -6,6 +6,7 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 import cloudscraper
 from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 
 FEEDS = [
     {"url": "https://www.rayovallecano.es/rss", "fuente": "Oficial"},
@@ -13,25 +14,19 @@ FEEDS = [
     {"url": "https://matagigantes.net/feed/", "fuente": "Matagigantes"}
 ]
 
-# Scraper disfrazado de Googlebot para saltar el Bot Verification de Cloudflare sin usar Playwright
-scraper = cloudscraper.create_scraper()
-GOOGLEBOT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-}
+scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
 
-def clean_image_url(image_url, base_feed_url=""):
-    if not image_url:
-        return ""
+def clean_image_url(image_url):
+    if not image_url: return ""
     image_url = image_url.strip().strip("'").strip('"')
     if image_url.startswith("data:") or ".gif" in image_url.lower() or "cropped-favicon" in image_url.lower() or "logo" in image_url.lower():
         return ""
-    if not image_url.startswith("http") and base_feed_url:
-        base_url = base_feed_url.split("/feed")[0]
-        if image_url.startswith("/"):
-            image_url = image_url[1:]
-        image_url = f"{base_url}/{image_url}"
+    if image_url.startswith("/"):
+        image_url = f"https://unionrayo.es{image_url}"
+        
+    image_url = image_url.replace("unionrayo-es.translate.goog", "unionrayo.es")
     
+    # Limpieza del recorte que vemos en tu captura (-350x250.jpeg -> .jpeg)
     if "wp-content/uploads" in image_url:
         image_url = image_url.split("?")[0]
         image_url = re.sub(r'-\d+x\d+\.(jpg|jpeg|png|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
@@ -42,101 +37,137 @@ def clean_image_url(image_url, base_feed_url=""):
         image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
     return image_url
 
-def get_sitemap_images():
-    """Descarga el Sitemap de Unión Rayo (permitido por Cloudflare) para mapear URLs con sus fotos"""
+def get_images_from_homepage():
+    """Hace scroll en la portada y caza las fotos usando los selectores exactos de tu captura"""
     image_map = {}
-    sitemap_urls = [
-        "https://unionrayo.es/post-sitemap.xml",
-        "https://unionrayo.es/sitemap.xml",
-        "https://unionrayo.es/sitemap-1.xml"
-    ]
-    
-    for url in sitemap_urls:
-        try:
-            res = scraper.get(url, headers=GOOGLEBOT_HEADERS, timeout=8)
-            if res.status_code == 200 and "<url>" in res.text:
-                blocks = res.text.split("<url>")
-                for block in blocks[1:]:
-                    loc_match = re.search(r'<loc>([^<]+)</loc>', block)
-                    img_match = re.search(r'<(?:image:loc|news:loc)[^>]*>([^<]+\.(?:jpg|jpeg|png|webp))<', block, re.IGNORECASE)
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                viewport={"width": 1440, "height": 900}
+            )
+            page = context.new_page()
+            
+            # Entramos por el traductor para que Cloudflare no pida el "Bot Verification"
+            portada_url = "https://unionrayo-es.translate.goog/?_x_tr_sl=auto&_x_tr_tl=es&_x_tr_hl=es"
+            page.goto(portada_url, wait_until="domcontentloaded", timeout=25000)
+            page.wait_for_timeout(3000)
+            
+            page.evaluate("""async () => {
+                await new Promise((resolve) => {
+                    let totalHeight = 0;
+                    let distance = 350;
+                    let timer = setInterval(() => {
+                        let scrollHeight = document.body.scrollHeight;
+                        window.scrollBy(0, distance);
+                        totalHeight += distance;
+                        if (totalHeight >= scrollHeight || totalHeight > 6000) {
+                            clearInterval(timer);
+                            resolve();
+                        }
+                    }, 150);
+                });
+            }""")
+            page.wait_for_timeout(2000)
+            
+            # Extraemos basándonos en tu captura: .jeg_post y .jeg_thumb
+            cards_data = page.evaluate("""() => {
+                const results = {};
+                
+                // 1. Carrusel de arriba (fondo CSS)
+                document.querySelectorAll('.jeg_slide_item').forEach(slide => {
+                    const a = slide.querySelector('a[href]');
+                    const style = slide.getAttribute('style') || '';
+                    const match = style.match(/url\\(['"]?([^'"\\)]+)['"]?\\)/i);
+                    if (a && match) {
+                        results[a.href] = match[1];
+                    }
+                });
+
+                // 2. Noticias estándar (la de tu captura)
+                document.querySelectorAll('article.jeg_post').forEach(article => {
+                    const a = article.querySelector('.jeg_thumb a');
+                    if (!a || !a.href) return;
                     
-                    if loc_match and img_match:
-                        clean_loc = loc_match.group(1).split('?')[0].rstrip('/')
-                        image_map[clean_loc] = clean_image_url(img_match.group(1).strip())
-                if image_map:
-                    print(f" -> Sitemap XML leído correctamente: {len(image_map)} fotos indexadas.")
-                    break
-        except Exception:
-            continue
+                    const img = a.querySelector('img');
+                    if (img) {
+                        // Priorizamos src de alta calidad, o el src base
+                        let photo = img.getAttribute('data-src') || img.currentSrc || img.src || '';
+                        
+                        if (photo && !photo.startsWith('data:')) {
+                            results[a.href] = photo;
+                        }
+                    }
+                });
+                
+                return results;
+            }""")
+            
+            for url_key, foto_url in cards_data.items():
+                clean_key = url_key.split('?')[0].replace('unionrayo-es.translate.goog', 'unionrayo.es').rstrip('/')
+                image_map[clean_key] = clean_image_url(foto_url)
+                
+            browser.close()
+    except Exception as e:
+        print(f" -> Aviso Playwright Portada: {e}")
+        
     return image_map
 
-def fetch_union_rayo_fast():
-    print("=== EXTRAYENDO UNIÓN RAYO (RSS2JSON + SITEMAP GOOGLEBOT) ===")
+def fetch_union_rayo():
+    print("=== EXTRAYENDO UNIÓN RAYO (PORTADA PLAYWRIGHT REFINADA) ===")
     news_items = []
     try:
-        # Usamos el feed de la categoría Primer Equipo que sugeriste
-        rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Fnuestros-equipos%2Fprimer-equipo%2Ffeed%2F"
-        res = scraper.get(rss2json_url, timeout=10)
+        # Obtenemos textos seguros con rss2json
+        rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
+        res = scraper.get(rss2json_url, timeout=15)
         
-        if res.status_code == 200:
-            data = res.json()
-            if data.get("status") == "ok":
-                items = data.get("items", [])
+        if res.status_code == 200 and res.json().get("status") == "ok":
+            items = res.json().get("items", [])
+            
+            print(" -> Cargando portada para cazar fotos con selectores exactos...")
+            image_map = get_images_from_homepage()
+            print(f" -> Fotos indexadas desde portada: {len(image_map)}")
+            
+            for item in items:
+                title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
+                link = item.get("link", "")
+                clean_link = link.split('?')[0].rstrip('/')
                 
-                # Cargamos el mapa de fotos del Sitemap en 1 segundo
-                sitemap_images = get_sitemap_images()
+                raw_date = item.get("pubDate", "")
+                pub_date = raw_date
+                if raw_date:
+                    try:
+                        pub_date = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S").strftime("%a, %d %b %Y %H:%M:%S +0000")
+                    except: pass
 
-                for item in items:
-                    title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
-                    link = item.get("link", "")
-                    clean_link = link.split('?')[0].rstrip('/')
-                    
-                    raw_date = item.get("pubDate", "")
-                    pub_date = raw_date
-                    if raw_date:
-                        try:
-                            pub_date = datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S").strftime("%a, %d %b %Y %H:%M:%S +0000")
-                        except: pass
-
-                    raw_desc = item.get("description", "")
-                    description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
-                    content_html = item.get("content", "").replace('loading="lazy"', '')
-
-                    # 1. Buscamos la foto en el mapa del Sitemap
-                    image_url = sitemap_images.get(clean_link, "")
-
-                    # 2. Si no está en el Sitemap, entramos a la noticia disfrazados de Googlebot
-                    if not image_url and link:
-                        try:
-                            art_res = scraper.get(link, headers=GOOGLEBOT_HEADERS, timeout=6)
-                            if art_res.status_code == 200:
-                                meta_match = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', art_res.text, re.IGNORECASE)
-                                if meta_match:
-                                    image_url = clean_image_url(meta_match.group(1))
-                        except: pass
-
-                    # 3. Respaldo final en el cuerpo HTML
-                    if not image_url and content_html:
-                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
-                        if img_match and "wp-content/uploads" in img_match.group(1):
-                            image_url = clean_image_url(img_match.group(1))
-
-                    print(f"   * [{title[:38]}...] -> {'OK: ' + image_url.split('/')[-1] if image_url else 'SIN FOTO'}")
-                    
-                    news_items.append({
-                        "id": item.get("guid", link),
-                        "title": title,
-                        "link": link,
-                        "published": pub_date,
-                        "summary": description,
-                        "content": content_html,
-                        "categories": item.get("categories", ["Primer Equipo"]),
-                        "image": image_url,
-                        "fuente": "Unión Rayo"
-                    })
+                raw_desc = item.get("description", "")
+                description = BeautifulSoup(raw_desc, "html.parser").text.replace("Leer más", "").replace("[...]", "").replace("[…]", "...").strip()
+                content_html = item.get("content", "").replace('loading="lazy"', '')
                 
-                con_foto = sum(1 for n in news_items if n["image"])
-                print(f" -> ¡COMPLETADO! {len(news_items)} noticias guardadas ({con_foto} con foto real).")
+                # Cruzamos la URL de la noticia con nuestro mapa de la portada
+                image_url = image_map.get(clean_link, "")
+                
+                if not image_url and content_html:
+                    img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
+                    if img_match and "wp-content/uploads" in img_match.group(1):
+                        image_url = clean_image_url(img_match.group(1))
+                        
+                print(f"   * [{title[:38]}...] -> {'OK' if image_url else 'SIN FOTO'}")
+
+                news_items.append({
+                    "id": item.get("guid", link),
+                    "title": title,
+                    "link": link,
+                    "published": pub_date,
+                    "summary": description,
+                    "content": content_html,
+                    "categories": item.get("categories", ["Unión Rayo"]),
+                    "image": image_url,
+                    "fuente": "Unión Rayo"
+                })
+            
+            print(f" -> ¡ÉXITO! {len(news_items)} noticias procesadas.")
     except Exception as e:
         print(f" -> Error crítico: {e}")
 
@@ -174,7 +205,7 @@ def fetch_and_parse_feed(feed_info):
                 img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
                 if img_match: image_url = img_match.group(1)
 
-            image_url = clean_image_url(image_url, feed_info["url"])
+            image_url = clean_image_url(image_url)
             cats = [cat.text.strip() for cat in item.findall("category") if cat.text]
 
             news_items.append({
@@ -190,7 +221,8 @@ def update_news():
     all_news = []
     for feed in FEEDS:
         all_news.extend(fetch_and_parse_feed(feed))
-    all_news.extend(fetch_union_rayo_fast())
+        
+    all_news.extend(fetch_union_rayo())
         
     def sort_key(item):
         try: return parsedate_to_datetime(item["published"]).timestamp()
@@ -202,5 +234,4 @@ def update_news():
     print(f"¡{len(all_news)} noticias extraídas en total!")
 
 if __name__ == "__main__":
-    update_news()
     update_news()
