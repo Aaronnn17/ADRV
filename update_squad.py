@@ -100,19 +100,17 @@ try:
             return results;
         }""")
 
-        # Procesamos cada jugador extraído de la web
+        # Procesamos cada jugador extraído de la web y creamos la LISTA PRINCIPAL
+        unique_web_players = []
         for item in cards_data:
             raw_name = item.get("rawName") or item.get("ariaName")
             if not raw_name:
                 continue
-            norm_name = normalize(raw_name)
-
+            
             photo_url = item.get("photo", "")
-            # Si viniera de un srcset, cogemos la primera URL limpia
             if "," in photo_url or " " in photo_url:
                 photo_url = photo_url.split(",")[0].strip().split(" ")[0]
 
-            # Desencriptar si pasa por _next/image
             if "/_next/image?url=" in photo_url:
                 parsed_url = urllib.parse.urlparse(photo_url)
                 qs = urllib.parse.parse_qs(parsed_url.query)
@@ -124,54 +122,65 @@ try:
             elif photo_url.startswith("/"):
                 photo_url = f"https://www.rayovallecano.es{photo_url}"
 
-            # Mejoramos la resolución si es de statics-maker (pasando de xsmall/small a original o manteniendo webp limpio)
             num_text = item.get("number", "")
             shirt_number = int(num_text) if num_text.isdigit() else None
 
             info_obj = {
                 "displayName": raw_name,
                 "shirtNumber": shirt_number,
-                "positionEs": item.get("positionEs", ""),
+                "positionEs": item.get("positionEs", "").upper(), # Lo guardamos ya en mayúsculas
                 "photo": photo_url,
                 "profileUrl": item.get("profileUrl", "")
             }
-
-            scraped_players[norm_name] = info_obj
-            # Guardamos también por el nombre del aria-label (ej: "A. Batalla" y "Batalla")
-            if item.get("ariaName"):
-                scraped_players[normalize(item["ariaName"])] = info_obj
+            
+            unique_web_players.append(info_obj)
 
         browser.close()
 
-    print(f" -> Tarjetas leídas en la web oficial: {len(scraped_players)} entradas.")
+    print(f" -> Jugadores encontrados en la web oficial: {len(unique_web_players)}.")
 
-    # 3. FUSIÓN CON LA API + DATOS EXTRA (Fecha nacimiento, edad, posición en español, ficha web)
+    # 3. FUSIÓN INVERTIDA: LA WEB MANDA (Buscamos en la API solo para rellenar huecos)
     formatted_squad = []
 
-    for player in raw_squad:
-        api_name = player.get("name", "")
-        norm_api_name = normalize(api_name)
-        api_shirt = player.get("shirtNumber")
+    # Diccionario opcional por si la web y la API tienen nombres muy distintos
+    alias_web_a_api = {
+        "isi": "isi palazón",
+        # "nombre que sale en la web (en minusculas)": "nombre que tiene la api (en minusculas)"
+    }
 
-        matched_info = {}
+    for web_player in unique_web_players:
+        web_name = web_player["displayName"]
+        norm_web = normalize(web_name)
+        
+        # Aplicamos alias si existe
+        search_name = alias_web_a_api.get(norm_web, norm_web)
 
-        # Intento 1: Coincidencia directa o por apellido sin inicial (ej. "a. batalla" -> "batalla")
-        for web_name, info in scraped_players.items():
-            clean_web = re.sub(r'^[a-z]\.\s*', '', web_name)
-            if web_name in norm_api_name or norm_api_name in web_name or (len(clean_web) > 3 and clean_web in norm_api_name):
-                matched_info = info
+        matched_api = {}
+
+        # Intento 1: Buscar coincidencia en la API
+        for api_player in raw_squad:
+            api_name = api_player.get("name", "")
+            norm_api = normalize(api_name)
+            clean_web = re.sub(r'^[a-z]\.\s*', '', search_name)
+            
+            if search_name in norm_api or norm_api in search_name or (len(clean_web) > 3 and clean_web in norm_api):
+                matched_api = api_player
                 break
 
         # Intento 2: Emparejamiento difuso (Fuzzy matching)
-        if not matched_info and scraped_players:
-            matches = difflib.get_close_matches(norm_api_name, scraped_players.keys(), n=1, cutoff=0.45)
+        if not matched_api and raw_squad:
+            api_names = {normalize(p.get("name", "")): p for p in raw_squad}
+            matches = difflib.get_close_matches(search_name, api_names.keys(), n=1, cutoff=0.55)
             if matches:
-                matched_info = scraped_players[matches[0]]
+                matched_api = api_names[matches[0]]
 
-        final_shirt = api_shirt if (api_shirt is not None and api_shirt > 0) else matched_info.get("shirtNumber")
-        final_photo = matched_info.get("photo", "")
+        # Extraemos el dorsal: manda la web, si no lo tiene, miramos la API
+        api_shirt = matched_api.get("shirtNumber")
+        web_shirt = web_player.get("shirtNumber")
+        final_shirt = web_shirt if web_shirt is not None else api_shirt
 
-        nationality_raw = player.get("nationality", "")
+        # Extraemos la nacionalidad de la API si la hemos encontrado
+        nationality_raw = matched_api.get("nationality", "")
         iso_code = ""
         if nationality_raw:
             try:
@@ -181,17 +190,17 @@ try:
                 iso_code = ""
 
         formatted_squad.append({
-            "id": player.get("id"),
-            "name": api_name,
-            "displayName": matched_info.get("displayName", api_name),
-            "position": player.get("position", "Unknown"),
-            "positionEs": matched_info.get("positionEs", ""),
-            "dateOfBirth": player.get("dateOfBirth", ""),
+            "id": matched_api.get("id"), # Si es canterano y no está en la API, será null (no pasa nada)
+            "name": matched_api.get("name", web_player["displayName"]),
+            "displayName": web_player["displayName"],
+            "position": matched_api.get("position", "Unknown"),
+            "positionEs": web_player.get("positionEs", ""),
+            "dateOfBirth": matched_api.get("dateOfBirth", ""),
             "nationality": nationality_raw,
             "countryCode": iso_code,
             "shirtNumber": final_shirt,
-            "photo": final_photo,
-            "profileUrl": matched_info.get("profileUrl", "")
+            "photo": web_player.get("photo", ""),
+            "profileUrl": web_player.get("profileUrl", "")
         })
 
     with open("squad.json", "w", encoding="utf-8") as f:
