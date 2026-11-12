@@ -2,13 +2,10 @@ import xml.etree.ElementTree as ET
 import urllib.parse
 import json
 import re
-import difflib
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 import cloudscraper
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
-import unicodedata
 
 FEEDS = [
     {"url": "https://www.rayovallecano.es/rss", "fuente": "Oficial"},
@@ -18,24 +15,20 @@ FEEDS = [
 
 scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
 
-def normalize_text(text):
-    if not text: return ""
-    text = unicodedata.normalize('NFKD', str(text)).encode('ASCII', 'ignore').decode('utf-8')
-    return re.sub(r'[^a-z0-9\s]', '', text.lower()).strip()
-
-def clean_image_url(image_url):
+def clean_image_url(image_url, base_feed_url=""):
     if not image_url: return ""
     image_url = image_url.strip().strip("'").strip('"')
     if image_url.startswith("data:") or ".gif" in image_url.lower() or "cropped-favicon" in image_url.lower() or "logo" in image_url.lower():
         return ""
-    if image_url.startswith("/"):
-        image_url = f"https://unionrayo.es{image_url}"
-        
-    image_url = image_url.replace("unionrayo-es.translate.goog", "unionrayo.es")
+    if not image_url.startswith("http") and base_feed_url:
+        base_url = base_feed_url.split("/feed")[0]
+        if image_url.startswith("/"):
+            image_url = image_url[1:]
+        image_url = f"{base_url}/{image_url}"
     
     if "wp-content/uploads" in image_url:
         image_url = image_url.split("?")[0]
-        # Limpieza del recorte -350x250.jpeg -> .jpeg
+        # Limpiamos recortes para obtener la foto en alta resolución
         image_url = re.sub(r'-\d+x\d+\.(jpg|jpeg|png|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
 
     image_url = re.sub(r'\.(jpg|jpeg|png)\.(avif|webp)$', r'.\1', image_url, flags=re.IGNORECASE)
@@ -44,109 +37,21 @@ def clean_image_url(image_url):
         image_url = f"https://wsrv.nl/?url={clean_url}&output=webp"
     return image_url
 
-def get_images_from_homepage():
-    """Hace scroll en la portada y empareja las fotos con el título del artículo"""
-    image_map_by_title = {}
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                viewport={"width": 1440, "height": 900}
-            )
-            page = context.new_page()
-            
-            # Entramos por el traductor para que Cloudflare no pida el "Bot Verification"
-            portada_url = "https://unionrayo-es.translate.goog/?_x_tr_sl=auto&_x_tr_tl=es&_x_tr_hl=es"
-            page.goto(portada_url, wait_until="domcontentloaded", timeout=25000)
-            page.wait_for_timeout(3000)
-            
-            page.evaluate("""async () => {
-                await new Promise((resolve) => {
-                    let totalHeight = 0;
-                    let distance = 350;
-                    let timer = setInterval(() => {
-                        let scrollHeight = document.body.scrollHeight;
-                        window.scrollBy(0, distance);
-                        totalHeight += distance;
-                        if (totalHeight >= scrollHeight || totalHeight > 6000) {
-                            clearInterval(timer);
-                            resolve();
-                        }
-                    }, 150);
-                });
-            }""")
-            page.wait_for_timeout(2000)
-            
-            # Extraemos usando selectores amplios y guardamos asociando al TÍTULO, no a la URL
-            cards_data = page.evaluate("""() => {
-                const results = [];
-                
-                // 1. Carrusel de arriba (fondo CSS)
-                document.querySelectorAll('.jeg_slide_item').forEach(slide => {
-                    const titleEl = slide.querySelector('.jeg_post_title, h2, h3, a');
-                    const style = slide.getAttribute('style') || '';
-                    const match = style.match(/url\\(['"]?([^'"\\)]+)['"]?\\)/i);
-                    if (titleEl && match) {
-                        results.push({title: titleEl.innerText.trim(), photo: match[1]});
-                    }
-                });
-
-                // 2. Noticias estándar (.jeg_post)
-                document.querySelectorAll('article.jeg_post').forEach(article => {
-                    const titleEl = article.querySelector('.jeg_post_title, h2, h3');
-                    if (!titleEl) return;
-                    
-                    let photo = '';
-                    const img = article.querySelector('img');
-                    if (img) {
-                        // Cazamos cualquier atributo que contenga la foto, priorizando data-src por el Lazy Loading
-                        photo = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.currentSrc || img.src || '';
-                        
-                        // Si hay srcset, cogemos la primera url limpia
-                        if (!photo && img.getAttribute('srcset')) {
-                            photo = img.getAttribute('srcset').split(',')[0].trim().split(' ')[0];
-                        }
-                    }
-                    
-                    if (photo && !photo.startsWith('data:')) {
-                        results.push({title: titleEl.innerText.trim(), photo: photo});
-                    }
-                });
-                
-                return results;
-            }""")
-            
-            for card in cards_data:
-                norm_title = normalize_text(card.get("title", ""))
-                foto_url = card.get("photo", "")
-                if norm_title and foto_url:
-                    image_map_by_title[norm_title] = clean_image_url(foto_url)
-                
-            browser.close()
-    except Exception as e:
-        print(f" -> Aviso Playwright Portada: {e}")
-        
-    return image_map_by_title
-
-def fetch_union_rayo():
-    print("=== EXTRAYENDO UNIÓN RAYO (PORTADA PLAYWRIGHT REFINADA - FUZZY MATCHING) ===")
+def fetch_union_rayo_wp_api():
+    print("=== EXTRAYENDO UNIÓN RAYO (VÍA WP REST API) ===")
     news_items = []
     try:
+        # 1. Obtenemos las noticias de forma segura con rss2json
         rss2json_url = "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Funionrayo.es%2Ffeed%2F"
         res = scraper.get(rss2json_url, timeout=15)
         
         if res.status_code == 200 and res.json().get("status") == "ok":
             items = res.json().get("items", [])
             
-            print(" -> Cargando portada para cazar fotos con selectores exactos...")
-            image_map_by_title = get_images_from_homepage()
-            print(f" -> Fotos indexadas desde portada: {len(image_map_by_title)}")
-            
             for item in items:
                 title = BeautifulSoup(item.get("title", ""), "html.parser").text.strip()
-                norm_title = normalize_text(title)
                 link = item.get("link", "")
+                guid = item.get("guid", link)
                 
                 raw_date = item.get("pubDate", "")
                 pub_date = raw_date
@@ -161,26 +66,38 @@ def fetch_union_rayo():
                 
                 image_url = ""
 
-                # 1. Búsqueda exacta por título
-                if norm_title in image_map_by_title:
-                    image_url = image_map_by_title[norm_title]
-                
-                # 2. Búsqueda difusa (Fuzzy Matching) si el título varía ligeramente
-                if not image_url and image_map_by_title:
-                    matches = difflib.get_close_matches(norm_title, image_map_by_title.keys(), n=1, cutoff=0.7)
-                    if matches:
-                        image_url = image_map_by_title[matches[0]]
-                
-                # 3. Búsqueda en el cuerpo HTML del RSS
+                # 2. LA MAGIA: Extraer ID del post desde el guid y llamar a la API REST
+                post_id_match = re.search(r'\?p=(\d+)', guid)
+                if post_id_match:
+                    post_id = post_id_match.group(1)
+                    try:
+                        # Usamos ?_embed para que devuelva la URL de la foto en la misma petición
+                        wp_api_url = f"https://unionrayo.es/wp-json/wp/v2/posts/{post_id}?_embed"
+                        # Pasamos por un proxy CORS limpio para esquivar a Cloudflare
+                        proxy_url = f"https://api.allorigins.win/raw?url={urllib.parse.quote(wp_api_url)}"
+                        
+                        api_res = scraper.get(proxy_url, timeout=10)
+                        if api_res.status_code == 200:
+                            post_data = api_res.json()
+                            # Extraemos la imagen destacada del JSON anidado
+                            embedded = post_data.get("_embedded", {})
+                            wp_featuredmedia = embedded.get("wp:featuredmedia", [])
+                            if wp_featuredmedia and isinstance(wp_featuredmedia, list):
+                                image_url = wp_featuredmedia[0].get("source_url", "")
+                    except Exception as e:
+                        print(f"   [Aviso API en {title[:20]}...]: {e}")
+
+                # 3. Respaldo por si falla la API (busca en el cuerpo HTML)
                 if not image_url and content_html:
                     img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
                     if img_match and "wp-content/uploads" in img_match.group(1):
-                        image_url = clean_image_url(img_match.group(1))
-                        
-                print(f"   * [{title[:38]}...] -> {'OK' if image_url else 'SIN FOTO'}")
+                        image_url = img_match.group(1)
+
+                image_url = clean_image_url(image_url)
+                print(f"   * [{title[:38]}...] -> {'OK: ' + image_url.split('/')[-1] if image_url else 'SIN FOTO'}")
 
                 news_items.append({
-                    "id": item.get("guid", link),
+                    "id": guid,
                     "title": title,
                     "link": link,
                     "published": pub_date,
@@ -191,7 +108,8 @@ def fetch_union_rayo():
                     "fuente": "Unión Rayo"
                 })
             
-            print(f" -> ¡ÉXITO! {len(news_items)} noticias procesadas.")
+            con_foto = sum(1 for n in news_items if n["image"])
+            print(f" -> ¡ÉXITO! {len(news_items)} noticias procesadas ({con_foto} con foto).")
     except Exception as e:
         print(f" -> Error crítico: {e}")
 
@@ -229,7 +147,7 @@ def fetch_and_parse_feed(feed_info):
                 img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content_html, re.IGNORECASE)
                 if img_match: image_url = img_match.group(1)
 
-            image_url = clean_image_url(image_url)
+            image_url = clean_image_url(image_url, feed_info["url"])
             cats = [cat.text.strip() for cat in item.findall("category") if cat.text]
 
             news_items.append({
@@ -246,7 +164,7 @@ def update_news():
     for feed in FEEDS:
         all_news.extend(fetch_and_parse_feed(feed))
         
-    all_news.extend(fetch_union_rayo())
+    all_news.extend(fetch_union_rayo_wp_api())
         
     def sort_key(item):
         try: return parsedate_to_datetime(item["published"]).timestamp()
