@@ -41,6 +41,7 @@ import com.example.adrv.model.ApiSquadData
 import com.example.adrv.model.ApiStanding
 import com.example.adrv.model.ApiStandingsData
 import com.example.adrv.model.RayoData
+import com.example.adrv.model.ApiPlayerDetail
 import com.example.adrv.ui.components.bounceClick
 import java.time.Instant
 import java.time.LocalDate
@@ -495,7 +496,7 @@ fun formatSpanishTimeOnly(dateString: String): String {
 }
 
 // ----------------------------------------------------
-// VISTA 2: CLASIFICACIÓN
+// VISTA 2: CLASIFICACIÓN (DISEÑO UEFA / DESCENSO)
 // ----------------------------------------------------
 @Composable
 fun ClasificacionView() {
@@ -518,6 +519,7 @@ fun ClasificacionView() {
                     .padding(horizontal = 8.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // CABECERA TABLA
                 item {
                     Row(
                         modifier = Modifier
@@ -525,64 +527,88 @@ fun ClasificacionView() {
                             .padding(bottom = 4.dp, start = 8.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Spacer(modifier = Modifier.width(4.dp)) // Espacio para la barra de color
                         Text("Pos", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.weight(0.12f))
-                        Text("Club", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.weight(0.43f))
+                        Text("Club", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.weight(0.38f))
                         Text("Pts", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.11f))
-                        Text("P", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
-                        Text("G", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
-                        Text("E", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
-                        Text("P", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
+                        Text("PJ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f))
+                        Text("V", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f))
+                        Text("E", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f))
+                        Text("D", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f))
+                        Text("DG", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.weight(0.11f))
                     }
                 }
 
+                // FILAS DE EQUIPOS
                 items(standingsData!!.standings) { team ->
-                    val isRayo = team.teamName.contains("Rayo")
+                    val isRayo = team.teamName.contains("Rayo", ignoreCase = true)
+                    val rowBgColor = if (isRayo) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    val zoneColor = getStandingsZoneColor(team.position)
+                    val goalDiffStr = if (team.goalDifference > 0) "+${team.goalDifference}" else "${team.goalDifference}"
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .bounceClick { selectedTeam = team },
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isRayo) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        shape = RoundedCornerShape(6.dp)
+                        colors = CardDefaults.cardColors(containerColor = rowBgColor),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp, horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .height(IntrinsicSize.Min) // Para que la barra lateral ocupe todo el alto
                         ) {
-                            Text(text = "${team.position}", fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.12f))
+                            // Barra lateral de color UEFA/Descenso
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .fillMaxHeight()
+                                    .background(zoneColor)
+                            )
 
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(0.43f)) {
-                                AsyncImage(model = team.crest, contentDescription = null, modifier = Modifier.size(18.dp).padding(end = 4.dp))
-                                Text(
-                                    text = team.shortName,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isRayo) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp, horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "${team.position}", fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.12f))
+
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(0.38f)) {
+                                    AsyncImage(model = team.crest, contentDescription = null, modifier = Modifier.size(20.dp).padding(end = 6.dp))
+                                    Text(
+                                        text = team.shortName,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isRayo) FontWeight.ExtraBold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                Text(text = "${team.points}", fontSize = 13.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center, modifier = Modifier.weight(0.11f))
+                                Text(text = "${team.playedGames}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f), color = Color.LightGray)
+                                Text(text = "${team.won}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f), color = Color.LightGray)
+                                Text(text = "${team.draw}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f), color = Color.LightGray)
+                                Text(text = "${team.lost}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f), color = Color.LightGray)
+                                Text(text = goalDiffStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.weight(0.11f))
                             }
-
-                            Text(text = "${team.points}", fontSize = 12.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center, modifier = Modifier.weight(0.11f))
-                            Text(text = "${team.playedGames}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
-                            Text(text = "${team.won}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
-                            Text(text = "${team.draw}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
-                            Text(text = "${team.lost}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.085f))
                         }
                     }
                 }
+
+                // LEYENDA UEFA / DESCENSO
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    StandingsLegendFooter()
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
             }
 
+            // MODAL EQUIPO (Igual que el tuyo)
             selectedTeam?.let { team ->
                 AlertDialog(
                     onDismissRequest = { selectedTeam = null },
-                    confirmButton = {
-                        TextButton(onClick = { selectedTeam = null }) {
-                            Text("Cerrar")
-                        }
-                    },
+                    confirmButton = { TextButton(onClick = { selectedTeam = null }) { Text("Cerrar") } },
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             AsyncImage(model = team.crest, contentDescription = null, modifier = Modifier.size(32.dp).padding(end = 12.dp))
@@ -595,17 +621,51 @@ fun ClasificacionView() {
                             TeamDetailRow(label = "Posición en la tabla", value = "${team.position}º")
                             TeamDetailRow(label = "Puntos", value = "${team.points}")
                             TeamDetailRow(label = "Partidos Jugados", value = "${team.playedGames}")
-                            TeamDetailRow(label = "Partidos Ganados", value = "${team.won}")
-                            TeamDetailRow(label = "Partidos Empatados", value = "${team.draw}")
-                            TeamDetailRow(label = "Partidos Perdidos", value = "${team.lost}")
                             TeamDetailRow(label = "Goles a Favor", value = "${team.goalsFor}")
                             TeamDetailRow(label = "Goles en Contra", value = "${team.goalsAgainst}")
-                            TeamDetailRow(label = "Diferencia de Goles", value = if (team.goalDifference > 0) "+${team.goalDifference}" else "${team.goalDifference}")
+                            TeamDetailRow(label = "Diferencia", value = if (team.goalDifference > 0) "+${team.goalDifference}" else "${team.goalDifference}")
                         }
                     }
                 )
             }
         }
+    }
+}
+
+@Composable
+fun getStandingsZoneColor(position: Int): Color = when (position) {
+    in 1..4 -> Color(0xFF66BB6A)   // Champions League (Verde)
+    5 -> Color(0xFF7E57C2)         // Europa League (Morado)
+    6 -> Color(0xFFFFB300)         // Conference League (Ambar)
+    in 18..20 -> Color(0xFFEF5350) // Descenso (Rojo)
+    else -> Color.Transparent
+}
+
+@Composable
+fun StandingsLegendFooter() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            LegendItem(color = Color(0xFF66BB6A), label = "Champions")
+            LegendItem(color = Color(0xFF7E57C2), label = "Europa League")
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            LegendItem(color = Color(0xFFFFB300), label = "Conference")
+            LegendItem(color = Color(0xFFEF5350), label = "Descenso")
+        }
+    }
+}
+
+@Composable
+private fun LegendItem(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.width(140.dp)) {
+        Box(modifier = Modifier.size(10.dp).background(color, shape = CircleShape))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = label, color = Color.LightGray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -620,12 +680,14 @@ fun TeamDetailRow(label: String, value: String) {
     }
 }
 
+
 // ----------------------------------------------------
-// VISTA 3: PLANTILLA
+// VISTA 3: PLANTILLA (DISEÑO CROMOS INTERACTIVOS)
 // ----------------------------------------------------
 @Composable
 fun PlantillaView() {
     var squadData by remember { mutableStateOf<ApiSquadData?>(null) }
+    var selectedPlayer by remember { mutableStateOf<ApiPlayerDetail?>(null) }
 
     LaunchedEffect(Unit) {
         squadData = RayoRepository.fetchSquadData()
@@ -637,142 +699,250 @@ fun PlantillaView() {
         }
     } else {
         val playersByPosition = squadData!!.squad.groupBy { it.position }
+        val sortedPositions = listOf("Goalkeeper", "Defence", "Midfield", "Offence")
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AsyncImage(
-                            model = squadData!!.club.crest,
-                            contentDescription = "Escudo Rayo",
-                            modifier = Modifier.size(60.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                text = squadData!!.club.name,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            if (!squadData!!.club.coach.isNullOrEmpty()) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Entrenador: ${squadData!!.club.coach}",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            playersByPosition.forEach { (position, players) ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // CABECERA ENTRENADOR
                 item {
-                    Text(
-                        text = translatePosition(position),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
-
-                items(players) { player ->
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .bounceClick { },
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        shape = RoundedCornerShape(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                val (posShort, posColor) = getPositionBadgeInfo(player.position)
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .background(posColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
+                            AsyncImage(
+                                model = squadData!!.club.crest,
+                                contentDescription = "Escudo Rayo",
+                                modifier = Modifier.size(54.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = squadData!!.club.name,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (!squadData!!.club.coach.isNullOrEmpty()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = posShort,
-                                        fontWeight = FontWeight.Bold,
-                                        color = posColor,
-                                        fontSize = 13.sp
+                                        text = "Entrenador: ${squadData!!.club.coach}",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
-
-                                Spacer(modifier = Modifier.width(16.dp))
-
-                                Text(
-                                    text = player.name,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 15.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
                             }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Text(
-                                text = getFlagEmoji(player.countryCode),
-                                fontSize = 22.sp,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
                         }
                     }
+                }
+
+                // GRID DE CROMOS POR POSICIÓN
+                sortedPositions.forEach { posKey ->
+                    val playersInPos = playersByPosition[posKey] ?: emptyList()
+                    if (playersInPos.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = translatePosition(posKey),
+                                fontWeight = FontWeight.Black,
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(bottom = 4.dp, top = 8.dp)
+                            )
+                        }
+
+                        // Chunk de 2 en 2 para hacer un Grid falso
+                        val rows = playersInPos.chunked(2)
+                        items(rows) { rowPlayers ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                for (player in rowPlayers) {
+                                    PlayerCromoCard(
+                                        player = player,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { selectedPlayer = player }
+                                    )
+                                }
+                                // Relleno si la fila es impar
+                                if (rowPlayers.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item { Spacer(modifier = Modifier.height(24.dp)) }
+            }
+
+            // MODAL DETALLE JUGADOR
+            selectedPlayer?.let { player ->
+                AlertDialog(
+                    onDismissRequest = { selectedPlayer = null },
+                    confirmButton = {
+                        TextButton(onClick = { selectedPlayer = null }) { Text("Cerrar") }
+                    },
+                    title = {
+                        Text(text = player.displayName ?: player.name, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (!player.photo.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = player.photo,
+                                    contentDescription = player.name,
+                                    modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(12.dp))
+                                )
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                            TeamDetailRow("Nombre completo", player.name)
+                            TeamDetailRow("Posición", player.positionEs ?: translatePosition(player.position).dropLast(1))
+                            TeamDetailRow("Nacionalidad", "${getFlagEmoji(player.countryCode)} ${player.nationality}")
+                            if (!player.dateOfBirth.isNullOrEmpty()) {
+                                TeamDetailRow("Edad", "${calculateAge(player.dateOfBirth)} años")
+                                TeamDetailRow("Nacimiento", formatSpanishDateOnly(player.dateOfBirth))
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+// CROMO INDIVIDUAL
+@Composable
+fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Card(
+        modifier = modifier
+            .aspectRatio(0.85f)
+            .bounceClick { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // FOTO GRANDE
+            if (!player.photo.isNullOrEmpty()) {
+                AsyncImage(
+                    model = player.photo,
+                    contentDescription = player.name,
+                    modifier = Modifier.fillMaxSize(),
+                    alignment = Alignment.TopCenter
+                )
+            } else {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Home, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
+                }
+            }
+
+            // DEGRADADO INFERIOR
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.6f)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color(0xFF0F172A).copy(alpha = 0.95f))
+                        )
+                    )
+            )
+
+            // PÍLDORA BANDERA Y EDAD ARRIBA
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = getFlagEmoji(player.countryCode), fontSize = 12.sp)
+                val age = calculateAge(player.dateOfBirth)
+                if (age != null) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "$age", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // DATOS ABAJO (DORSAL GIGANTE + NOMBRE)
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = player.shirtNumber?.toString() ?: "-",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 36.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Column {
+                    Text(
+                        text = player.displayName ?: player.name.split(" ").last(),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = player.positionEs ?: translatePosition(player.position).dropLast(1),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 11.sp,
+                        color = Color.LightGray
+                    )
                 }
             }
         }
     }
 }
 
-fun getPositionBadgeInfo(position: String): Pair<String, Color> {
-    return when (position.lowercase()) {
-        "goalkeeper" -> Pair("PT", Color(0xFFFFB300))
-        "defence"    -> Pair("DF", Color(0xFF1E88E5))
-        "midfield"   -> Pair("MC", Color(0xFF43A047))
-        "offence"    -> Pair("DL", Color(0xFFE53935))
-        else         -> Pair("S/P", Color.Gray)
-    }
-}
-
+// UTILIDADES PLANTILLA
 fun getFlagEmoji(countryCode: String?): String {
-    if (countryCode.isNullOrEmpty() || countryCode.length != 2) return "🌍"
-
+    if (countryCode.isNullOrEmpty() || countryCode.length != 2) return "🏴"
     val code = countryCode.uppercase()
     val firstChar = Character.codePointAt(code, 0) - 0x41 + 0x1F1E6
     val secondChar = Character.codePointAt(code, 1) - 0x41 + 0x1F1E6
-
     return String(Character.toChars(firstChar)) + String(Character.toChars(secondChar))
+}
+
+fun calculateAge(dateOfBirth: String?): Int? {
+    if (dateOfBirth.isNullOrBlank()) return null
+    return try {
+        val parts = dateOfBirth.split("-")
+        val birthYear = parts[0].toInt()
+        val birthMonth = parts[1].toInt()
+        val birthDay = parts[2].toInt()
+
+        val today = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Europe/Madrid"))
+        var age = today.get(java.util.Calendar.YEAR) - birthYear
+        if (today.get(java.util.Calendar.MONTH) + 1 < birthMonth ||
+            (today.get(java.util.Calendar.MONTH) + 1 == birthMonth && today.get(java.util.Calendar.DAY_OF_MONTH) < birthDay)
+        ) {
+            age--
+        }
+        age
+    } catch (e: Exception) {
+        null
+    }
 }
 
 fun translatePosition(position: String): String {

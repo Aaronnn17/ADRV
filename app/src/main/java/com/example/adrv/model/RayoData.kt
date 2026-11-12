@@ -90,8 +90,13 @@ data class ClubDetails(
 data class ApiPlayerDetail(
     val id: Int,
     val name: String,
+    val displayName: String? = null,
     val position: String,
+    val positionEs: String? = null,
+    val dateOfBirth: String? = null,
     val nationality: String,
     val countryCode: String?,
-    val shirtNumber: Int?
+    val shirtNumber: Int?,
+    val photo: String? = null,
+    val profileUrl: String? = null
 )
