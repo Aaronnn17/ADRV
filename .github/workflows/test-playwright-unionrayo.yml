@@ -1,0 +1,28 @@
+name: Test Union Rayo (Playwright)
+
+# Solo manual. No hace commit de nada: solo muestra en el log si Chromium pasa Cloudflare.
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar Playwright
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Extraer fotos de Union Rayo
+        run: python fetch_unionrayo_images_pw.py
+
+      - name: Ver resultado
+        if: always()
+        run: head -c 1500 unionrayo_images.json || echo "No se genero unionrayo_images.json"
