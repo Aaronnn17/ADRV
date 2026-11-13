@@ -11,13 +11,23 @@ def extraer_match_center_completo():
         # 1. Entramos a la web principal de partidos del Rayo
         print("Entrando a la web del Rayo Vallecano...")
         page.goto("https://www.rayovallecano.es/partidos")
-        page.wait_for_timeout(3000) # Esperar a que cargue la SPA de Next.js
         
-        # 2. Buscamos el enlace del "Match center" del próximo partido
-        match_link_elem = page.locator("a[href*='/partidos/']:has-text('Match center')").first
+        # Esperamos a que cargue y hacemos un pequeño scroll para asegurar que se renderiza el "Siguiente" partido
+        page.wait_for_timeout(4000)
+        page.evaluate("window.scrollTo(0, 500)")
+        page.wait_for_timeout(2000)
+
+        # 2. Búsqueda flexible del botón o enlace del Match Center del próximo partido
+        # Buscamos cualquier enlace que tenga texto parecido a "Match center" (ignorando mayúsculas)
+        match_link_elem = page.locator("a:has-text('Match center'), a:has-text('Match Center'), [href*='/partidos/temporada']").first
         
         if not match_link_elem.is_visible():
-            print("No se encontró el Match Center del próximo partido.")
+            print("No se encontró el Match Center del próximo partido de forma directa.")
+            # Intento alternativo: buscar por la clase o tarjeta del siguiente partido
+            match_link_elem = page.locator("article").first.locator("a[href*='/partidos/']").first
+
+        if not match_link_elem.is_visible():
+            print("Error crítico: Imposible localizar el enlace del partido.")
             browser.close()
             return
 
@@ -25,9 +35,9 @@ def extraer_match_center_completo():
         if url_partido.startswith("/"):
             url_partido = "https://www.rayovallecano.es" + url_partido
 
-        print(f"Navegando al Match Center: {url_partido}")
+        print(f"¡Encontrado! Navegando al Match Center: {url_partido}")
         page.goto(url_partido)
-        page.wait_for_timeout(4000) # Esperar a que renderice todas las pestañas y estadísticas
+        page.wait_for_timeout(4000)
 
         datos_partido = {
             "match_center_url": url_partido,
