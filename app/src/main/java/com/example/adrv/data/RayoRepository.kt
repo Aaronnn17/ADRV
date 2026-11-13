@@ -3,6 +3,7 @@ package com.example.adrv.data
 import com.example.adrv.model.ApiNewsResponse
 import com.example.adrv.model.ApiSquadData
 import com.example.adrv.model.ApiStandingsData
+import com.example.adrv.model.MatchStatsResponse
 import com.example.adrv.model.RayoData
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,17 @@ object RayoRepository {
         try {
             val jsonString = URL(GITHUB_NEWS_URL).readText()
             Gson().fromJson(jsonString, ApiNewsResponse::class.java)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun fetchMatchStats(): com.example.adrv.model.MatchStatsResponse? = withContext(Dispatchers.IO) {
+        try {
+            val url = java.net.URL("https://raw.githubusercontent.com/Aaronnn17/ADRV/master/match_stats.json")
+            val jsonString = url.readText()
+            com.google.gson.Gson().fromJson(jsonString, com.example.adrv.model.MatchStatsResponse::class.java)
         } catch (e: Exception) {
             e.printStackTrace()
             null

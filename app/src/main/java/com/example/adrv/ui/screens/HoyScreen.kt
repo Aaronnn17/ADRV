@@ -97,6 +97,9 @@ fun HoyScreen() {
     var isRefreshing by remember { mutableStateOf(false) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
 
+    var showMatchStatsSheet by remember { mutableStateOf(false) }
+    var matchStatsData by remember { mutableStateOf<com.example.adrv.model.MatchStatsResponse?>(null) }
+
     // Variables para el menú de Ajustes y el controlador del tema global
     var showSettingsDialog by remember { mutableStateOf(false) }
     val themeController = com.example.adrv.LocalThemeController.current
@@ -148,6 +151,7 @@ fun HoyScreen() {
             isRefreshing = true
             rayoData = RayoRepository.fetchRayoData()
             newsData = RayoRepository.fetchNewsData()?.news
+            matchStatsData = RayoRepository.fetchMatchStats()
             novedadesHistorial = sharedPrefs.getStringSet("history_alerts", emptySet())?.toList() ?: emptyList()
             isRefreshing = false
         }
@@ -158,6 +162,7 @@ fun HoyScreen() {
             isLoading = true
             rayoData = RayoRepository.fetchRayoData()
             newsData = RayoRepository.fetchNewsData()?.news
+            matchStatsData = RayoRepository.fetchMatchStats()
             novedadesHistorial = sharedPrefs.getStringSet("history_alerts", emptySet())?.toList() ?: emptyList()
             isLoading = false
         }
@@ -294,7 +299,7 @@ fun HoyScreen() {
                                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                             }
                         } else if (nextMatch != null) {
-                            NextMatchCard(match = nextMatch)
+                            NextMatchCard(match = nextMatch, onClick = { showMatchStatsSheet = true })
 
                             if (novedadesHistorial.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(24.dp))
@@ -554,7 +559,18 @@ fun HoyScreen() {
             containerColor = Color.Transparent
         )
     }
-}
+
+    // EL PANEL INFERIOR SUAVE PARA LAS ESTADÍSTICAS DEL PARTIDO
+    if (showMatchStatsSheet && matchStatsData != null && nextMatch != null) {
+        @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = { showMatchStatsSheet = false },
+            sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ) {
+            MatchStatsScreen(stats = matchStatsData!!, matchInfo = nextMatch)
+        }
+    }
+} // <- Cierre principal de HoyScreen()
 
 // --- Funciones auxiliares para formatear las fechas ---
 fun formatTimeForComparison(dateString: String): String {
@@ -683,7 +699,7 @@ fun StatRow(label: String, homeValue: String, awayValue: String) {
 }
 
 @Composable
-fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
+fun NextMatchCard(match: com.example.adrv.model.ApiMatch, onClick: () -> Unit = {}) {
     val formattedDateTime = remember(match.dateText) {
         try {
             val utcDateTime = ZonedDateTime.parse(match.dateText)
@@ -713,7 +729,7 @@ fun NextMatchCard(match: com.example.adrv.model.ApiMatch) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp)
-            .bounceClick { },
+            .bounceClick { onClick() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
