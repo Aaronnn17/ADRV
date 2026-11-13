@@ -1,5 +1,9 @@
 package com.example.adrv.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -51,6 +55,7 @@ import com.example.adrv.model.ApiStandingsData
 import com.example.adrv.model.RayoData
 import com.example.adrv.model.ApiPlayerDetail
 import com.example.adrv.ui.components.bounceClick
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -845,91 +850,95 @@ fun PlantillaView() {
     }
 }
 
-// CROMO INDIVIDUAL CON ANIMACIÓN DE APARICIÓN SUAVE
+// CROMO INDIVIDUAL OPTIMIZADO PARA SCROLL FLUIDO
 @Composable
 fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    // Estado para disparar la animación de entrada en cascada
-    var visible by remember { mutableStateOf(false) }
+    // 1. rememberSaveable "recuerda" si el cromo ya se animó, incluso si haces scroll
+    var hasAnimated by rememberSaveable { mutableStateOf(false) }
+
+    // 2. Animatables listos. Si ya se animó, empiezan en su estado final (1f y 0f)
+    val alpha = remember { Animatable(if (hasAnimated) 1f else 0f) }
+    val offsetY = remember { Animatable(if (hasAnimated) 0f else 100f) }
+
     LaunchedEffect(Unit) {
-        visible = true
+        if (!hasAnimated) {
+            // Se ejecuta solo la primera vez que aparece en pantalla
+            launch { alpha.animateTo(1f, animationSpec = tween(400)) }
+            launch { offsetY.animateTo(0f, animationSpec = tween(400)) }
+            hasAnimated = true
+        }
     }
 
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(durationMillis = 400)) +
-                slideInVertically(
-                    initialOffsetY = { fullHeight -> fullHeight / 3 },
-                    animationSpec = androidx.compose.animation.core.tween(durationMillis = 400)
-                ),
+    Card(
         modifier = modifier
+            // 3. graphicsLayer aplica la animación directamente en la GPU (0 tirones)
+            .graphicsLayer {
+                this.alpha = alpha.value
+                this.translationY = offsetY.value
+            }
+            .aspectRatio(0.85f)
+            .bounceClick { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(0.85f)
-                .bounceClick { onClick() },
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (!player.photo.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = player.photo,
-                        contentDescription = player.name,
-                        modifier = Modifier.fillMaxSize(),
-                        alignment = Alignment.TopCenter
-                    )
-                } else {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(androidx.compose.material.icons.Icons.Default.Home, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
-                    }
-                }
-
-                // Fondo difuminado inferior para los textos
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.6f)
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color(0xFF0F172A).copy(alpha = 0.95f))
-                            )
-                        )
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (!player.photo.isNullOrEmpty()) {
+                AsyncImage(
+                    model = player.photo,
+                    contentDescription = player.name,
+                    modifier = Modifier.fillMaxSize(),
+                    alignment = Alignment.TopCenter
                 )
+            } else {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(androidx.compose.material.icons.Icons.Default.Home, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(40.dp))
+                }
+            }
 
-                // Contenido inferior limpio: Solo Dorsal, Nombre y Posición
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = player.shirtNumber?.toString() ?: "-",
-                        fontWeight = FontWeight.Black,
-                        fontSize = 36.sp,
-                        color = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.padding(end = 8.dp)
+            // Fondo difuminado inferior
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.6f)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color(0xFF0F172A).copy(alpha = 0.95f))
+                        )
                     )
-                    Column {
-                        Text(
-                            text = player.displayName ?: player.name.split(" ").last(),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = player.positionEs ?: translatePosition(player.position).dropLast(1),
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 11.sp,
-                            color = Color.LightGray
-                        )
-                    }
+            )
+
+            // Contenido inferior
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = player.shirtNumber?.toString() ?: "-",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 36.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Column {
+                    Text(
+                        text = player.displayName ?: player.name.split(" ").last(),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = player.positionEs ?: translatePosition(player.position).dropLast(1),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 11.sp,
+                        color = Color.LightGray
+                    )
                 }
             }
         }
