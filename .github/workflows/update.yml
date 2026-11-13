@@ -6,6 +6,7 @@ on:
     - cron: '*/15 * * * 1-5'
     # Sábados y Domingos: Cada 5 minutos
     - cron: '*/5 * * * 0,6'
+  
   workflow_dispatch: # Permite ejecutarlo a mano desde GitHub cuando quieras
 
 jobs:
@@ -44,10 +45,13 @@ jobs:
       - name: Ejecutar script de Noticias
         run: python update_news.py
 
+      - name: Ejecutar script de Estadísticas del Siguiente Partido
+        run: python scraper_match_stats.py
+
       - name: Commit y Push de los JSON
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add matches.json standings.json squad.json news.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Actualización automática de Calendario, Clasificación, Plantilla y Noticias"
+          git add matches.json standings.json squad.json news.json match_stats.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Actualización automática de Calendario, Clasificación, Plantilla, Noticias y Estadísticas"
           git push
