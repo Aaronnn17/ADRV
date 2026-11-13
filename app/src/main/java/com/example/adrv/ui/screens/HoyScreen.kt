@@ -2,6 +2,7 @@ package com.example.adrv.ui.screens
 
 import android.content.Context
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -35,13 +36,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,6 +73,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.adrv.NotificationNavigator
 import com.example.adrv.data.RayoRepository
 import com.example.adrv.model.MatchEvent
 import com.example.adrv.model.RayoData
@@ -113,6 +118,30 @@ fun HoyScreen() {
     val scope = rememberCoroutineScope()
 
     val refreshState = rememberPullToRefreshState()
+
+    LaunchedEffect(Unit) {
+        val type = NotificationNavigator.pendingTargetType
+        val data = NotificationNavigator.pendingTargetData
+
+        if (type != null) {
+            NotificationNavigator.pendingTargetType = null
+            NotificationNavigator.pendingTargetData = null
+
+            // Esperamos un instante a que los datos carguen de la API
+            kotlinx.coroutines.delay(500)
+
+            if (type == "news" && !data.isNullOrEmpty()) {
+                val matchedNews = newsData?.find { it.link == data }
+                selectedNewsUrl = data
+                selectedNewsTitle = matchedNews?.title ?: "Noticia del Rayo"
+            } else if (type == "match") {
+                val matchedMatch = rayoData?.partidos?.find { it.dateText == data }
+                if (matchedMatch != null) {
+                    selectedMatchForDialog = matchedMatch
+                }
+            }
+        }
+    }
 
     fun refreshData() {
         scope.launch {
@@ -284,11 +313,21 @@ fun HoyScreen() {
                                         val id = parts.getOrNull(1) ?: ""
                                         val text = parts.getOrNull(2) ?: novedad
 
+                                        // Comprobamos si ya fue leído
+                                        val prefsHistory = context.getSharedPreferences("adrv_prefs", Context.MODE_PRIVATE)
+                                        val readItems = prefsHistory.getStringSet("read_news_ids", emptySet()) ?: emptySet()
+                                        val isUnread = !readItems.contains(id)
+
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(vertical = 4.dp)
                                                 .bounceClick {
+                                                    // Marcamos como leído al hacer clic
+                                                    val currentRead = prefsHistory.getStringSet("read_news_ids", mutableSetOf()) ?: mutableSetOf()
+                                                    val updatedRead = currentRead.toMutableSet().apply { add(id) }
+                                                    prefsHistory.edit().putStringSet("read_news_ids", updatedRead).apply()
+
                                                     if (type == "NEWS") {
                                                         val newsItem = newsData?.find { it.id == id }
                                                         if (newsItem != null && newsItem.link.isNotEmpty()) {
@@ -316,9 +355,22 @@ fun HoyScreen() {
                                                 modifier = Modifier.padding(16.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Icon(Icons.Default.Star, contentDescription = null, tint = RayoRed, modifier = Modifier.size(20.dp))
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Text(text = text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                                // Solo muestra el rayo si no se ha leído
+                                                if (isUnread) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.FlashOn,
+                                                        contentDescription = "Nueva",
+                                                        tint = Color.Red,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                }
+                                                Text(
+                                                    text = text,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
                                             }
                                         }
                                     }
@@ -331,8 +383,20 @@ fun HoyScreen() {
                         Spacer(modifier = Modifier.height(24.dp))
                     }
 
-                    // MENÚ DE AJUSTES
+                    // MENÚ DE AJUSTES MEJORADO CON PREFERENCIAS DE NOTIFICACIONES
                     if (showSettingsDialog) {
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        val prefs = context.getSharedPreferences("adrv_prefs", android.content.Context.MODE_PRIVATE)
+
+                        // Estados locales para los Toggles
+                        var notificationsEnabled by remember { mutableStateOf(prefs.getBoolean("notifications_enabled", true)) }
+                        var notifyMatches by remember { mutableStateOf(prefs.getBoolean("notify_matches", true)) }
+                        var notifyNews by remember { mutableStateOf(prefs.getBoolean("notify_news", true)) }
+                        var allowedSources by remember { mutableStateOf(prefs.getStringSet("notify_sources", emptySet()) ?: emptySet()) }
+
+                        // Lista de fuentes habituales de tu JSON (Modifica estos nombres según las fuentes que realmente tengas)
+                        val availableSources = listOf("Unión Rayo", "Oficial", "Matagigantes", "Bukaneros")
+
                         AlertDialog(
                             onDismissRequest = { showSettingsDialog = false },
                             title = {
@@ -343,32 +407,100 @@ fun HoyScreen() {
                                 }
                             },
                             text = {
-                                Column {
+                                // Usamos un scroll vertical por si el menú crece mucho
+                                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+
+                                    // 1. MODO OSCURO (Existente)
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 8.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column {
-                                            Text(text = "Modo Oscuro", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
-                                            Text(text = "Cambiar los colores de la aplicación", fontSize = 12.sp, color = Color.Gray)
+                                            Text("Modo Oscuro", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                                            Text("Cambiar colores de la aplicación", fontSize = 12.sp, color = Color.Gray)
                                         }
                                         Switch(
                                             checked = themeController.isDarkTheme,
                                             onCheckedChange = { themeController.toggleTheme() },
-                                            colors = SwitchDefaults.colors(
-                                                checkedThumbColor = Color.White,
-                                                checkedTrackColor = MaterialTheme.colorScheme.primary
-                                            )
+                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary)
                                         )
+                                    }
+
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.Gray.copy(alpha = 0.2f))
+
+                                    // 2. NOTIFICACIONES GLOBALES
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Recibir Notificaciones Push", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                                        Switch(
+                                            checked = notificationsEnabled,
+                                            onCheckedChange = {
+                                                notificationsEnabled = it
+                                                prefs.edit().putBoolean("notifications_enabled", it).apply()
+                                            },
+                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary)
+                                        )
+                                    }
+
+                                    // 3. SUBCATEGORÍAS (Solo visibles si las notificaciones están activadas)
+                                    AnimatedVisibility(visible = notificationsEnabled) {
+                                        Column(modifier = Modifier.padding(start = 16.dp, top = 8.dp)) {
+
+                                            // Partidos
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Checkbox(
+                                                    checked = notifyMatches,
+                                                    onCheckedChange = {
+                                                        notifyMatches = it
+                                                        prefs.edit().putBoolean("notify_matches", it).apply()
+                                                    }
+                                                )
+                                                Text("Cambios de Horarios y Partidos", fontSize = 14.sp)
+                                            }
+
+                                            // Noticias
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Checkbox(
+                                                    checked = notifyNews,
+                                                    onCheckedChange = {
+                                                        notifyNews = it
+                                                        prefs.edit().putBoolean("notify_news", it).apply()
+                                                    }
+                                                )
+                                                Text("Nuevas Noticias", fontSize = 14.sp)
+                                            }
+
+                                            // Filtro de fuentes de noticias (Visible si Noticias está activado)
+                                            AnimatedVisibility(visible = notifyNews) {
+                                                Column(modifier = Modifier.padding(start = 16.dp, top = 4.dp)) {
+                                                    Text("Fuentes permitidas (Vacío = Todas):", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.Gray)
+                                                    availableSources.forEach { source ->
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Checkbox(
+                                                                checked = allowedSources.contains(source),
+                                                                onCheckedChange = { isChecked ->
+                                                                    val newSet = allowedSources.toMutableSet()
+                                                                    if (isChecked) newSet.add(source) else newSet.remove(source)
+                                                                    allowedSources = newSet
+                                                                    prefs.edit().putStringSet("notify_sources", newSet).apply()
+                                                                }
+                                                            )
+                                                            Text(source, fontSize = 13.sp)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             },
                             confirmButton = {
                                 TextButton(onClick = { showSettingsDialog = false }) {
-                                    Text(text = "Cerrar", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    Text("Cerrar", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                 }
                             },
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,

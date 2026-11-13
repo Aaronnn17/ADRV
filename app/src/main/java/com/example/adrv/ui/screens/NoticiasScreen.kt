@@ -29,6 +29,10 @@ import com.example.adrv.R
 import com.example.adrv.data.RayoRepository
 import com.example.adrv.model.News
 import com.example.adrv.ui.components.bounceClick
+import android.content.Context
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun NoticiasScreen() {
@@ -172,10 +176,25 @@ fun NoticiasScreen() {
 
 @Composable
 fun ModernNewsCard(item: News, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("adrv_prefs", Context.MODE_PRIVATE)
+
+    // Recuperamos los IDs leídos
+    val readNews = prefs.getStringSet("read_news_ids", emptySet()) ?: emptySet()
+    val isUnread = !readNews.contains(item.id)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .bounceClick { onClick() },
+            .bounceClick {
+                // 1. Guardamos el ID como leído al hacer clic
+                val currentRead = prefs.getStringSet("read_news_ids", mutableSetOf()) ?: mutableSetOf()
+                val updatedRead = currentRead.toMutableSet().apply { add(item.id) }
+                prefs.edit().putStringSet("read_news_ids", updatedRead).apply()
+
+                // 2. Ejecutamos la acción original de abrir la noticia
+                onClick()
+            },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
@@ -193,6 +212,17 @@ fun ModernNewsCard(item: News, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // SI LA NOTICIA NO ESTÁ LEÍDA, MOSTRAMOS EL RAYO ROJO
+                    if (isUnread) {
+                        Icon(
+                            imageVector = Icons.Default.FlashOn,
+                            contentDescription = "No leída",
+                            tint = Color.Red,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+
                     val logoRes = when (item.fuente.lowercase()) {
                         "rayo vallecano", "oficial" -> R.drawable.logo_oficial
                         "unión rayo", "union rayo" -> R.drawable.logo_unionrayo
@@ -229,7 +259,7 @@ fun ModernNewsCard(item: News, onClick: () -> Unit) {
                     }
                 }
 
-                // Fecha traducida infaliblemente al castellano
+                // Fecha traducida
                 Text(
                     text = formatSpanishNewsDate(item.published),
                     fontSize = 12.sp,
