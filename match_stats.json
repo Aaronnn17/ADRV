@@ -49,21 +49,21 @@
                 "local": "RSO",
                 "resultado": "1 - 0",
                 "visitante": "RAY",
-                "estado": "A"
+                "estado": "D"
             },
             {
                 "fecha": "31/10/26",
                 "local": "RAY",
                 "resultado": "3 - 0",
                 "visitante": "CEL",
-                "estado": "A"
+                "estado": "V"
             },
             {
                 "fecha": "24/10/26",
                 "local": "RAY",
                 "resultado": "0 - 3",
                 "visitante": "ELC",
-                "estado": "A"
+                "estado": "D"
             },
             {
                 "fecha": "19/10/26",
@@ -86,21 +86,21 @@
                 "local": "VAL",
                 "resultado": "0 - 3",
                 "visitante": "RMA",
-                "estado": "A"
+                "estado": "D"
             },
             {
                 "fecha": "1/11/26",
                 "local": "ELC",
                 "resultado": "0 - 1",
                 "visitante": "VAL",
-                "estado": "A"
+                "estado": "V"
             },
             {
                 "fecha": "24/10/26",
                 "local": "VAL",
                 "resultado": "1 - 2",
                 "visitante": "VIL",
-                "estado": "A"
+                "estado": "D"
             },
             {
                 "fecha": "17/10/26",
