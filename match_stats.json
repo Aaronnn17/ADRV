@@ -1,10 +1,53 @@
 {
-    "match_center_url": "https://www.rayovallecano.es/partidos/temporada-2024-2025-laliga-ea-sports-13-rayo-vallecano-de-madrid-vs-valencia-cf-0000",
+    "match_center_url": "https://www.rayovallecano.es/partidos/temporada-2026-2027-laliga-ea-sports-1-sevilla-fc-vs-rayo-vallecano-2929",
     "cara_a_cara": {
-        "resumen": []
+        "resumen": [
+            "Cara a cara",
+            "4victorias4empates1victorias",
+            "4victorias",
+            "4",
+            "victorias",
+            "4empates",
+            "empates",
+            "1victorias",
+            "1",
+            "Datos desde 2022 • LALIGA EA SPORTS"
+        ]
     },
-    "enfrentamientos_recientes": [],
-    "racha_ultimos_partidos": [],
+    "enfrentamientos_recientes": [
+        "Enfrentamientos recientes",
+        "15 ago 2026Sevilla FC2 - 1Rayo VallecanoLALIGA EA SPORTS8 mar 2026Sevilla FC1 - 1Rayo VallecanoLALIGA EA SPORTS28 sept 2025Rayo Vallecano0 - 1Sevilla FCLALIGA EA SPORTS1 mar 2025Rayo Vallecano1 - 1Sevilla FCLALIGA EA SPORTS24 nov 2024Sevilla FC1 - 0Rayo VallecanoLALIGA EA SPORTS",
+        "15 ago 2026Sevilla FC2 - 1Rayo VallecanoLALIGA EA SPORTS",
+        "15 ago 2026",
+        "Sevilla FC2 - 1Rayo Vallecano",
+        "Sevilla FC",
+        "2 - 1",
+        "Rayo Vallecano",
+        "LALIGA EA SPORTS",
+        "8 mar 2026Sevilla FC1 - 1Rayo VallecanoLALIGA EA SPORTS",
+        "8 mar 2026",
+        "Sevilla FC1 - 1Rayo Vallecano",
+        "1 - 1",
+        "28 sept 2025Rayo Vallecano0 - 1Sevilla FCLALIGA EA SPORTS",
+        "28 sept 2025"
+    ],
+    "racha_ultimos_partidos": [
+        "Racha en los últimos partidos",
+        "6/11/26SEV0-0ALAEmpatee1/11/26GET3-1SEVDerrotad26/10/26SEV2-0OSAVictoriav18/10/26RMA4-1SEVDerrotad12/10/26LEV3-3SEVEmpatee8/11/26RSO1-0RAYDerrotad31/10/26RAY3-0CELVictoriav24/10/26RAY0-3ELCDerrotad19/10/26GET1-1RAYEmpatee19/9/26OSA1-1RAYEmpatee",
+        "6/11/26SEV0-0ALAEmpatee1/11/26GET3-1SEVDerrotad26/10/26SEV2-0OSAVictoriav18/10/26RMA4-1SEVDerrotad12/10/26LEV3-3SEVEmpatee",
+        "6/11/26SEV0-0ALAEmpatee",
+        "6/11/26",
+        "SEV0-0ALA",
+        "SEV",
+        "0-0",
+        "0",
+        "ALA",
+        "Empatee",
+        "Empate",
+        "1/11/26GET3-1SEVDerrotad",
+        "1/11/26",
+        "GET3-1SEV"
+    ],
     "estadisticas_temporada": [],
     "estadisticas_jugadores": []
 }
