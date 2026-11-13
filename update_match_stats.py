@@ -1,10 +1,9 @@
 from playwright.sync_api import sync_playwright
 import json
 import os
-from datetime import datetime, timezone
 
-def extraer_match_center_robusto():
-    # 1. CREAMOS EL SALVAVIDAS
+def extraer_match_center_definitivo():
+    # 1. CREAMOS EL SALVAVIDAS (JSON vacío por si acaso)
     datos_partido = {
         "match_center_url": "",
         "cara_a_cara": {},
@@ -16,49 +15,8 @@ def extraer_match_center_robusto():
     with open("match_stats.json", "w", encoding="utf-8") as f:
         json.dump(datos_partido, f, ensure_ascii=False, indent=4)
 
-    # 2. OBTENEMOS LA URL DEL PARTIDO DESDE matches.json
-    if not os.path.exists("matches.json"):
-        print("Error: matches.json no existe. Cancelando.")
-        return
+    print("Iniciando extracción robusta del Match Center...")
 
-    with open("matches.json", "r", encoding="utf-8") as f:
-        data_matches = json.load(f)
-
-    partidos = data_matches.get("partidos", [])
-    if not partidos:
-        return
-
-    ahora = datetime.now(timezone.utc)
-    url_partido = None
-    home = ""
-    away = ""
-
-    for match in partidos:
-        try:
-            date_text = match.get("dateText", "")
-            match_date = datetime.fromisoformat(date_text.replace("Z", "+00:00"))
-            if match_date >= ahora:
-                # Extraemos la url o construimos la base
-                url_partido = match.get("matchCenterUrl", "")
-                home = match.get("homeTeam", "").lower().replace(" ", "-")
-                away = match.get("awayTeam", "").lower().replace(" ", "-")
-                break
-        except Exception:
-            continue
-
-    # Si no hay URL directa en tu JSON, la construimos por defecto
-    if not url_partido and home and away:
-        # Esto asume el formato estándar de la web del rayo. Si puedes añadir matchCenterUrl en tu script de calendario, mejor.
-        print("Aviso: Construyendo URL de forma manual porque no viene en el JSON.")
-        url_partido = f"https://www.rayovallecano.es/partidos/temporada-2024-2025-laliga-ea-sports-13-{home}-vs-{away}-0000"
-
-    if not url_partido:
-        print("Error: No hay próximo partido.")
-        return
-
-    print(f"Navegando directamente a la URL del Match Center: {url_partido}")
-
-    # 3. EXTRACCIÓN AL ESTILO SQUAD.PY (Con JS Inyectado)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
         context = browser.new_context(
@@ -67,11 +25,50 @@ def extraer_match_center_robusto():
         )
         page = context.new_page()
         
-        # Entramos directamente a la URL del partido
-        page.goto(url_partido, wait_until="domcontentloaded", timeout=30000)
-        page.wait_for_timeout(3000)
+        # 2. ENCONTRAR LA URL REAL DEL PARTIDO
+        print("Buscando el enlace del próximo partido en la web oficial...")
+        page.goto("https://www.rayovallecano.es/partidos", wait_until="domcontentloaded", timeout=30000)
+        
+        # Hacemos scroll progresivo para asegurar que cargan los partidos de Next.js
+        page.evaluate("""async () => {
+            await new Promise((resolve) => {
+                let totalHeight = 0;
+                let distance = 350;
+                let timer = setInterval(() => {
+                    let scrollHeight = document.body.scrollHeight;
+                    window.scrollBy(0, distance);
+                    totalHeight += distance;
+                    if (totalHeight >= 1500) { // Solo necesitamos bajar un poco para el próximo partido
+                        clearInterval(timer);
+                        resolve();
+                    }
+                }, 150);
+            });
+        }""")
+        page.wait_for_timeout(2000)
 
-        # Hacemos scroll progresivo (Igual que en squad.py)
+        # Extraemos todos los enlaces de la página buscando el "Match center"
+        url_partido = page.evaluate("""() => {
+            let links = Array.from(document.querySelectorAll('a'));
+            let matchLink = links.find(a => 
+                (a.href.includes('/partidos/') && a.innerText.toLowerCase().includes('match center')) ||
+                (a.href.includes('temporada-202') && a.href.includes('-vs-'))
+            );
+            return matchLink ? matchLink.href : null;
+        }""")
+
+        if not url_partido:
+            print("Error crítico: No se encontró la URL real del Match Center en la web.")
+            browser.close()
+            return
+            
+        print(f"URL válida encontrada: {url_partido}")
+
+        # 3. EXTRAER LAS ESTADÍSTICAS
+        print("Navegando al Match Center para extraer datos...")
+        page.goto(url_partido, wait_until="domcontentloaded", timeout=30000)
+        
+        # Scroll progresivo completo
         page.evaluate("""async () => {
             await new Promise((resolve) => {
                 let totalHeight = 0;
@@ -89,7 +86,7 @@ def extraer_match_center_robusto():
         }""")
         page.wait_for_timeout(3000)
 
-        # Inyectamos JS para extraer los bloques de estadísticas (Igual que extrajimos las cards en squad)
+        # Extracción vía DOM
         extracted_data = page.evaluate("""() => {
             const getTexts = (selector) => {
                 const el = document.querySelector(selector);
@@ -98,7 +95,7 @@ def extraer_match_center_robusto():
                 let texts = [];
                 items.forEach(i => {
                     const t = i.innerText.trim();
-                    if(t) texts.push(t);
+                    if(t && !texts.includes(t)) texts.push(t);
                 });
                 return texts;
             };
@@ -112,7 +109,7 @@ def extraer_match_center_robusto():
             };
         }""")
 
-        # 4. VOLCAMOS LOS DATOS AL JSON SALVAVIDAS
+        # 4. VOLCAR LOS DATOS
         datos_partido["match_center_url"] = url_partido
         datos_partido["cara_a_cara"]["resumen"] = extracted_data.get("h2h", [])[:15]
         datos_partido["enfrentamientos_recientes"] = extracted_data.get("recent", [])[:15]
@@ -123,8 +120,8 @@ def extraer_match_center_robusto():
         with open("match_stats.json", "w", encoding="utf-8") as f:
             json.dump(datos_partido, f, ensure_ascii=False, indent=4)
 
-        print("¡Archivo match_stats.json completado con éxito mediante page.evaluate!")
+        print("¡Archivo match_stats.json completado con éxito!")
         browser.close()
 
 if __name__ == "__main__":
-    extraer_match_center_robusto()
+    extraer_match_center_definitivo()
