@@ -2,17 +2,118 @@
     "match_center_url": "https://www.rayovallecano.es/partidos/temporada-2026-2027-laliga-ea-sports-13-rayo-vallecano-vs-valencia-cf-3048",
     "cara_a_cara": {
         "victorias_local": "2",
-        "empates": "1",
-        "victorias_visitante": "5"
+        "empates": "5",
+        "victorias_visitante": "1"
     },
     "enfrentamientos_recientes": [
-        "Enfrentamientos recientes",
-        "14 may 2026Valencia CF1 - 1Rayo VallecanoLALIGA EA SPORTS1 dic 2025Rayo Vallecano1 - 1Valencia CFLALIGA EA SPORTS19 abr 2025Rayo Vallecano1 - 1Valencia CFLALIGA EA SPORTS7 dic 2024Valencia CF0 - 1Rayo VallecanoLALIGA EA SPORTS12 may 2024Valencia CF0 - 0Rayo VallecanoLALIGA EA SPORTS"
+        {
+            "fecha": "14 may 2026",
+            "local": "Valencia CF",
+            "resultado": "1 - 1",
+            "visitante": "Rayo Vallecano",
+            "competicion": "LALIGA EA SPORTS"
+        },
+        {
+            "fecha": "1 dic 2025",
+            "local": "Rayo Vallecano",
+            "resultado": "1 - 1",
+            "visitante": "Valencia CF",
+            "competicion": "LALIGA EA SPORTS"
+        },
+        {
+            "fecha": "19 abr 2025",
+            "local": "Rayo Vallecano",
+            "resultado": "1 - 1",
+            "visitante": "Valencia CF",
+            "competicion": "LALIGA EA SPORTS"
+        },
+        {
+            "fecha": "7 dic 2024",
+            "local": "Valencia CF",
+            "resultado": "0 - 1",
+            "visitante": "Rayo Vallecano",
+            "competicion": "LALIGA EA SPORTS"
+        },
+        {
+            "fecha": "12 may 2024",
+            "local": "Valencia CF",
+            "resultado": "0 - 0",
+            "visitante": "Rayo Vallecano",
+            "competicion": "LALIGA EA SPORTS"
+        }
     ],
-    "racha_ultimos_partidos": {
-        "local": [],
-        "visitante": []
-    },
+    "racha_ultimos_partidos": [
+        {
+            "fecha": "8/11/26",
+            "local": "RSO",
+            "resultado": "1",
+            "visitante": "-",
+            "estado": "0"
+        },
+        {
+            "fecha": "31/10/26",
+            "local": "RAY",
+            "resultado": "3",
+            "visitante": "-",
+            "estado": "0"
+        },
+        {
+            "fecha": "24/10/26",
+            "local": "RAY",
+            "resultado": "0",
+            "visitante": "-",
+            "estado": "3"
+        },
+        {
+            "fecha": "19/10/26",
+            "local": "GET",
+            "resultado": "1",
+            "visitante": "-",
+            "estado": "1"
+        },
+        {
+            "fecha": "19/9/26",
+            "local": "OSA",
+            "resultado": "1",
+            "visitante": "-",
+            "estado": "1"
+        },
+        {
+            "fecha": "7/11/26",
+            "local": "VAL",
+            "resultado": "0",
+            "visitante": "-",
+            "estado": "3"
+        },
+        {
+            "fecha": "1/11/26",
+            "local": "ELC",
+            "resultado": "0",
+            "visitante": "-",
+            "estado": "1"
+        },
+        {
+            "fecha": "24/10/26",
+            "local": "VAL",
+            "resultado": "1",
+            "visitante": "-",
+            "estado": "2"
+        },
+        {
+            "fecha": "17/10/26",
+            "local": "VAL",
+            "resultado": "0",
+            "visitante": "-",
+            "estado": "0"
+        },
+        {
+            "fecha": "11/10/26",
+            "local": "RAC",
+            "resultado": "2",
+            "visitante": "-",
+            "estado": "2"
+        }
+    ],
     "estadisticas_temporada": [],
     "estadisticas_jugadores": []
 }
