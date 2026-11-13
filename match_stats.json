@@ -42,78 +42,164 @@
             "competicion": "LALIGA EA SPORTS"
         }
     ],
-    "racha_ultimos_partidos": [
+    "racha_ultimos_partidos": {
+        "local": [
+            {
+                "fecha": "8/11/26",
+                "local": "RSO",
+                "resultado": "1 - 0",
+                "visitante": "RAY",
+                "estado": "A"
+            },
+            {
+                "fecha": "31/10/26",
+                "local": "RAY",
+                "resultado": "3 - 0",
+                "visitante": "CEL",
+                "estado": "A"
+            },
+            {
+                "fecha": "24/10/26",
+                "local": "RAY",
+                "resultado": "0 - 3",
+                "visitante": "ELC",
+                "estado": "A"
+            },
+            {
+                "fecha": "19/10/26",
+                "local": "GET",
+                "resultado": "1 - 1",
+                "visitante": "RAY",
+                "estado": "E"
+            },
+            {
+                "fecha": "19/9/26",
+                "local": "OSA",
+                "resultado": "1 - 1",
+                "visitante": "RAY",
+                "estado": "E"
+            }
+        ],
+        "visitante": [
+            {
+                "fecha": "7/11/26",
+                "local": "VAL",
+                "resultado": "0 - 3",
+                "visitante": "RMA",
+                "estado": "A"
+            },
+            {
+                "fecha": "1/11/26",
+                "local": "ELC",
+                "resultado": "0 - 1",
+                "visitante": "VAL",
+                "estado": "A"
+            },
+            {
+                "fecha": "24/10/26",
+                "local": "VAL",
+                "resultado": "1 - 2",
+                "visitante": "VIL",
+                "estado": "A"
+            },
+            {
+                "fecha": "17/10/26",
+                "local": "VAL",
+                "resultado": "0 - 0",
+                "visitante": "ATH",
+                "estado": "E"
+            },
+            {
+                "fecha": "11/10/26",
+                "local": "RAC",
+                "resultado": "2 - 2",
+                "visitante": "VAL",
+                "estado": "E"
+            }
+        ]
+    },
+    "estadisticas_temporada": [
         {
-            "fecha": "8/11/26",
-            "local": "RSO",
-            "resultado": "1",
-            "visitante": "-",
-            "estado": "0"
+            "estadistica": "Posesión",
+            "local": "51%",
+            "visitante": "43%"
         },
         {
-            "fecha": "31/10/26",
-            "local": "RAY",
-            "resultado": "3",
-            "visitante": "-",
-            "estado": "0"
+            "estadistica": "Goles",
+            "media_local": "1.3",
+            "local": "15",
+            "visitante": "8",
+            "media_visitante": "0.7"
         },
         {
-            "fecha": "24/10/26",
-            "local": "RAY",
-            "resultado": "0",
-            "visitante": "-",
-            "estado": "3"
+            "estadistica": "Goles de penalti",
+            "media_local": "0",
+            "local": "0",
+            "visitante": "1",
+            "media_visitante": "0.1"
         },
         {
-            "fecha": "19/10/26",
-            "local": "GET",
-            "resultado": "1",
-            "visitante": "-",
-            "estado": "1"
+            "estadistica": "Disparos",
+            "media_local": "10.2",
+            "local": "122",
+            "visitante": "84",
+            "media_visitante": "7"
         },
         {
-            "fecha": "19/9/26",
-            "local": "OSA",
-            "resultado": "1",
-            "visitante": "-",
-            "estado": "1"
+            "estadistica": "Disparos a puerta",
+            "media_local": "4.5",
+            "local": "54",
+            "visitante": "34",
+            "media_visitante": "2.8"
         },
         {
-            "fecha": "7/11/26",
-            "local": "VAL",
-            "resultado": "0",
-            "visitante": "-",
-            "estado": "3"
+            "estadistica": "Precisión de disparo",
+            "local": "44%",
+            "visitante": "40%"
         },
         {
-            "fecha": "1/11/26",
-            "local": "ELC",
-            "resultado": "0",
-            "visitante": "-",
-            "estado": "1"
+            "estadistica": "Pases totales",
+            "media_local": "398.3",
+            "local": "4,779",
+            "visitante": "4,705",
+            "media_visitante": "392.1"
         },
         {
-            "fecha": "24/10/26",
-            "local": "VAL",
-            "resultado": "1",
-            "visitante": "-",
-            "estado": "2"
+            "estadistica": "Precisión en los pases",
+            "local": "83%",
+            "visitante": "80%"
         },
         {
-            "fecha": "17/10/26",
-            "local": "VAL",
-            "resultado": "0",
-            "visitante": "-",
-            "estado": "0"
+            "estadistica": "Córners",
+            "media_local": "4.9",
+            "local": "59",
+            "visitante": "46",
+            "media_visitante": "3.8"
         },
         {
-            "fecha": "11/10/26",
-            "local": "RAC",
-            "resultado": "2",
-            "visitante": "-",
-            "estado": "2"
+            "estadistica": "Faltas",
+            "media_local": "10.9",
+            "local": "131",
+            "visitante": "123",
+            "media_visitante": "10.3"
+        },
+        {
+            "estadistica": "Fuera de juego",
+            "media_local": "1.6",
+            "local": "19",
+            "visitante": "30",
+            "media_visitante": "2.5"
+        },
+        {
+            "estadistica": "Tarjetas amarillas",
+            "local": "26",
+            "visitante": "29"
+        },
+        {
+            "estadistica": "Tarjetas rojas",
+            "local": "2",
+            "visitante": "2"
         }
     ],
-    "estadisticas_temporada": [],
     "estadisticas_jugadores": []
 }
