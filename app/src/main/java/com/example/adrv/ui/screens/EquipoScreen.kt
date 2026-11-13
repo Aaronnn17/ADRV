@@ -12,8 +12,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
@@ -290,6 +288,11 @@ fun CalendarioView() {
                     if (currentDay > daysInMonth) break
                 }
             }
+
+            // LEYENDA DEL CALENDARIO (AÑADIDO)
+            Spacer(modifier = Modifier.height(16.dp))
+            CalendarLegend()
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
@@ -320,7 +323,7 @@ fun DayCell(
             .padding(4.dp)
             .clip(CircleShape)
             .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
-            .bounceClick { if (match != null) onClick() else onClick() },
+            .bounceClick { onClick() },
         contentAlignment = Alignment.Center
     ) {
         if (match != null) {
@@ -361,6 +364,41 @@ fun DayCell(
     }
 }
 
+// COMPONENTES LEYENDA CALENDARIO (AÑADIDOS)
+@Composable
+fun CalendarLegend() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CalendarLegendItem(icon = Icons.Default.Home, bgColor = Color(0xFF0F172A), iconTint = Color.White, text = "Local")
+        CalendarLegendItem(icon = Icons.Default.Flight, bgColor = Color(0xFF0F172A), iconTint = Color.White, text = "Visitante")
+        // Utilizamos el icono de casa genérico pero en gris para los "Sin confirmar", como en tus DayCells
+        CalendarLegendItem(icon = Icons.Default.Home, bgColor = Color.Gray.copy(alpha = 0.8f), iconTint = Color.White.copy(alpha = 0.6f), text = "Sin confirmar")
+    }
+}
+
+@Composable
+fun CalendarLegendItem(icon: androidx.compose.ui.graphics.vector.ImageVector, bgColor: Color, iconTint: Color, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(bgColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(10.dp))
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = text, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+    }
+}
+
+
 @Composable
 fun MatchDetailsPanelContent(match: ApiMatch) {
     Column(
@@ -390,7 +428,7 @@ fun MatchDetailsPanelContent(match: ApiMatch) {
                 if (match.status == "FINISHED" && match.homeScore != null && match.awayScore != null) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "${match.homeScore} - ${match.awayScore}",
+                            text = "${match.homeScore}\n${match.awayScore}",
                             fontSize = 36.sp,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface
@@ -791,7 +829,7 @@ fun PlantillaView() {
                 item { Spacer(modifier = Modifier.height(24.dp)) }
             }
 
-            // MODAL BOTTOM SHEET JUGADOR MINIMALISTA
+            // MODAL BOTTOM SHEET JUGADOR MINIMALISTA CON TRADUCCIÓN (AÑADIDO)
             selectedPlayer?.let { player ->
                 ModalBottomSheet(
                     onDismissRequest = { selectedPlayer = null },
@@ -836,7 +874,8 @@ fun PlantillaView() {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 TeamDetailRow("Nombre completo", player.name)
                                 TeamDetailRow("Dorsal", player.shirtNumber?.toString() ?: "-")
-                                TeamDetailRow("Nacionalidad", "${getFlagEmoji(player.countryCode)} ${player.nationality}")
+                                // APLICADA LA FUNCIÓN DE TRADUCCIÓN DE PAÍS
+                                TeamDetailRow("Nacionalidad", "${getFlagEmoji(player.countryCode)} ${getSpanishCountryName(player.countryCode, player.nationality)}")
                                 if (!player.dateOfBirth.isNullOrEmpty()) {
                                     TeamDetailRow("Edad", "${calculateAge(player.dateOfBirth)} años")
                                     TeamDetailRow("Nacimiento", formatSpanishDateOnly(player.dateOfBirth))
@@ -853,16 +892,13 @@ fun PlantillaView() {
 // CROMO INDIVIDUAL OPTIMIZADO PARA SCROLL FLUIDO
 @Composable
 fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    // 1. rememberSaveable "recuerda" si el cromo ya se animó, incluso si haces scroll
     var hasAnimated by rememberSaveable { mutableStateOf(false) }
 
-    // 2. Animatables listos. Si ya se animó, empiezan en su estado final (1f y 0f)
     val alpha = remember { Animatable(if (hasAnimated) 1f else 0f) }
     val offsetY = remember { Animatable(if (hasAnimated) 0f else 100f) }
 
     LaunchedEffect(Unit) {
         if (!hasAnimated) {
-            // Se ejecuta solo la primera vez que aparece en pantalla
             launch { alpha.animateTo(1f, animationSpec = tween(400)) }
             launch { offsetY.animateTo(0f, animationSpec = tween(400)) }
             hasAnimated = true
@@ -871,7 +907,6 @@ fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onCl
 
     Card(
         modifier = modifier
-            // 3. graphicsLayer aplica la animación directamente en la GPU (0 tirones)
             .graphicsLayer {
                 this.alpha = alpha.value
                 this.translationY = offsetY.value
@@ -896,7 +931,6 @@ fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onCl
                 }
             }
 
-            // Fondo difuminado inferior
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -909,7 +943,6 @@ fun PlayerCromoCard(player: ApiPlayerDetail, modifier: Modifier = Modifier, onCl
                     )
             )
 
-            // Contenido inferior
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -985,5 +1018,16 @@ fun translatePosition(position: String): String {
         "midfield" -> "Centrocampistas"
         "offence" -> "Delanteros"
         else -> position
+    }
+}
+
+// FUNCIÓN DE TRADUCCIÓN DE PAÍS (AÑADIDA)
+fun getSpanishCountryName(countryCode: String?, defaultName: String): String {
+    if (countryCode.isNullOrEmpty()) return defaultName
+    return try {
+        val locale = java.util.Locale("", countryCode)
+        locale.getDisplayCountry(java.util.Locale("es", "ES")).replaceFirstChar { it.uppercase() }
+    } catch (e: Exception) {
+        defaultName
     }
 }
