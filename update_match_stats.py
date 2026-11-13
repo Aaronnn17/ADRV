@@ -2,6 +2,23 @@ from playwright.sync_api import sync_playwright
 import json
 import os
 import re
+import urllib.parse
+
+def limpiar_url_foto(photo_url):
+    if not photo_url:
+        return ""
+    if "," in photo_url or " " in photo_url:
+        photo_url = photo_url.split(",")[0].strip().split(" ")[0]
+    if "/_next/image?url=" in photo_url:
+        parsed_url = urllib.parse.urlparse(photo_url)
+        qs = urllib.parse.parse_qs(parsed_url.query)
+        if "url" in qs:
+            photo_url = qs["url"][0]
+    if photo_url.startswith("data:"):
+        return ""
+    elif photo_url.startswith("/"):
+        photo_url = f"https://www.rayovallecano.es{photo_url}"
+    return photo_url
 
 def extraer_match_center_siguiente():
     datos_partido = {
@@ -54,7 +71,7 @@ def extraer_match_center_siguiente():
         page.goto(url_partido, wait_until="domcontentloaded", timeout=30000)
         page.wait_for_timeout(3000)
         
-        # Scroll lento y profundo en 2 pasadas para obligar a que carguen las gráficas del final
+        # Scroll progresivo en 2 pasadas para asegurar carga de fotos e indicadores finales
         for _ in range(2):
             page.evaluate("""async () => {
                 await new Promise((resolve) => {
@@ -68,39 +85,44 @@ def extraer_match_center_siguiente():
             }""")
             page.wait_for_timeout(2500)
 
-        # Extraemos con los selectores exactos de tu F12
         extracted = page.evaluate("""() => {
             const getLeafTexts = (selector) => {
-                const el = document.querySelector(selector);
-                if (!el) return [];
-                const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
-                const texts = []; let node;
-                while (node = walker.nextNode()) {
-                    let val = node.nodeValue.trim();
-                    if (val && !['Cara a cara', 'Enfrentamientos recientes', 'Racha en los últimos partidos', 'Estadísticas de la temporada', 'Estadísticas de los jugadores'].includes(val)) {
-                        texts.push(val);
-                    }
-                }
-                return texts;
-            };
-
-            // Para jugadores, extraemos cada tarjeta de comparación por separado (incluyendo fotos)
-            const getPlayerStats = () => {
-                const container = document.querySelector('[class*="MatchPlayerComparison"]');
-                if (!container) return [];
-                const cards = container.querySelectorAll('[class*="StatBarComparison"]');
-                const results = [];
-                cards.forEach(card => {
-                    const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT, null, false);
+                const els = document.querySelectorAll(selector);
+                for (let el of els) {
+                    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
                     const texts = []; let node;
                     while (node = walker.nextNode()) {
                         let val = node.nodeValue.trim();
-                        if (val) texts.push(val);
+                        if (val && !['Cara a cara', 'Enfrentamientos recientes', 'Racha en los últimos partidos', 'Estadísticas de la temporada', 'Estadísticas de los jugadores'].includes(val)) {
+                            texts.push(val);
+                        }
                     }
-                    const imgs = Array.from(card.querySelectorAll('img')).map(img => img.currentSrc || img.src || '');
-                    if (texts.length >= 3) {
-                        results.push({ texts: texts, imgs: imgs });
-                    }
+                    if (texts.length > 0) return texts;
+                }
+                return [];
+            };
+
+            // Buscamos en TODOS los contenedores de comparación de jugadores (para saltar los que están ocultos con display: none)
+            const getPlayerStats = () => {
+                const containers = document.querySelectorAll('[class*="MatchPlayerComparison"]');
+                const results = [];
+                containers.forEach(container => {
+                    const cards = container.querySelectorAll('[class*="StatBarComparison"]');
+                    cards.forEach(card => {
+                        const headerEl = card.querySelector('[class*="header"]');
+                        if (!headerEl) return; // Solo procesamos las tarjetas principales
+
+                        const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT, null, false);
+                        const texts = []; let node;
+                        while (node = walker.nextNode()) {
+                            let val = node.nodeValue.trim();
+                            if (val && val !== 'Estadísticas de los jugadores') texts.push(val);
+                        }
+                        const imgs = Array.from(card.querySelectorAll('img')).map(img => img.currentSrc || img.src || img.getAttribute('srcset') || '');
+                        if (texts.length >= 3) {
+                            results.push({ texts: texts, imgs: imgs });
+                        }
+                    });
                 });
                 return results;
             };
@@ -151,31 +173,35 @@ def extraer_match_center_siguiente():
             })
         datos_partido["enfrentamientos_recientes"] = recent_clean[:5]
 
-        # 3. ORDENAR RACHA ÚLTIMOS PARTIDOS (Separando Local y Visitante, y uniendo el "1 - 0")
+        # 3. ORDENAR RACHA ÚLTIMOS PARTIDOS (Corregido estado[0] -> V, E, D)
         racha_all = []
         chunk = []
         
+        def obtener_inicial_estado(raw_str):
+            s = raw_str.strip().upper()
+            if s.startswith("V"): return "V"
+            if s.startswith("E"): return "E"
+            if s.startswith("D"): return "D"
+            return s[0] if s else ""
+
         def procesar_chunk_racha(c):
             if len(c) >= 6 and c[3] == "-":
-                # Formato cuando el marcador viene separado: [fecha, local, goles_L, "-", goles_V, visitante, estado...]
                 estado_raw = c[6] if len(c) > 6 else ""
-                estado_letra = estado_raw[-1].upper() if estado_raw else ""
                 return {
                     "fecha": c[0],
                     "local": c[1],
                     "resultado": f"{c[2]} - {c[4]}",
                     "visitante": c[5],
-                    "estado": estado_letra
+                    "estado": obtener_inicial_estado(estado_raw)
                 }
             elif len(c) >= 4:
                 estado_raw = c[4] if len(c) > 4 else ""
-                estado_letra = estado_raw[-1].upper() if estado_raw else ""
                 return {
                     "fecha": c[0],
                     "local": c[1],
                     "resultado": c[2],
                     "visitante": c[3],
-                    "estado": estado_letra
+                    "estado": obtener_inicial_estado(estado_raw)
                 }
             return None
 
@@ -198,7 +224,6 @@ def extraer_match_center_siguiente():
 
         # 4. ORDENAR ESTADÍSTICAS DE LA TEMPORADA
         s_raw = [t for t in extracted.get("season", []) if t.lower() != "por partido"]
-        # Quitamos los nombres de los equipos del principio si aparecen
         if len(s_raw) >= 2 and not re.match(r'^[\d,.]+[%]?$', s_raw[1]):
             s_raw = s_raw[2:]
 
@@ -233,26 +258,31 @@ def extraer_match_center_siguiente():
                 i += 1
         datos_partido["estadisticas_temporada"] = season_clean
 
-        # 5. ORDENAR ESTADÍSTICAS DE JUGADORES
+        # 5. ORDENAR ESTADÍSTICAS DE JUGADORES (Sin duplicados y limpiando URLs de Next.js)
         players_clean = []
+        vistas = set()
         for card in extracted.get("players", []):
             t_list = card.get("texts", [])
             imgs = card.get("imgs", [])
             if not t_list: continue
             
             titulo = t_list[0]
+            if titulo in vistas:
+                continue
+                
             nums = [x for x in t_list[1:] if is_num(x)]
             names = [x for x in t_list[1:] if not is_num(x)]
             
             if len(nums) >= 2 and len(names) >= 2:
+                vistas.add(titulo)
                 players_clean.append({
                     "estadistica": titulo,
                     "jugador_local": names[0],
                     "valor_local": nums[0],
-                    "foto_local": imgs[0] if len(imgs) > 0 else "",
+                    "foto_local": limpiar_url_foto(imgs[0]) if len(imgs) > 0 else "",
                     "jugador_visitante": names[1],
                     "valor_visitante": nums[1],
-                    "foto_visitante": imgs[1] if len(imgs) > 1 else ""
+                    "foto_visitante": limpiar_url_foto(imgs[1]) if len(imgs) > 1 else ""
                 })
         datos_partido["estadisticas_jugadores"] = players_clean
 
