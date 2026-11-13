@@ -35,6 +35,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -45,6 +46,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -88,6 +91,10 @@ fun HoyScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
     var showNotificationsDialog by remember { mutableStateOf(false) }
+
+    // Variables para el menú de Ajustes y el controlador del tema global
+    var showSettingsDialog by remember { mutableStateOf(false) }
+    val themeController = com.example.adrv.LocalThemeController.current
 
     // VARIABLES PARA CONTROLAR LOS DIÁLOGOS Y VISOR WEB
     var selectedNewsUrl by remember { mutableStateOf<String?>(null) }
@@ -245,6 +252,9 @@ fun HoyScreen() {
                             onNotificationClick = {
                                 if (unreadCount > 0) showNotificationsDialog = true
                             },
+                            onSettingsClick = {
+                                showSettingsDialog = true
+                            },
                             unreadCount = unreadCount
                         )
 
@@ -319,6 +329,51 @@ fun HoyScreen() {
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))
+                    }
+
+                    // MENÚ DE AJUSTES
+                    if (showSettingsDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showSettingsDialog = false },
+                            title = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(text = "Ajustes", fontWeight = FontWeight.Bold)
+                                }
+                            },
+                            text = {
+                                Column {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(text = "Modo Oscuro", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                                            Text(text = "Cambiar los colores de la aplicación", fontSize = 12.sp, color = Color.Gray)
+                                        }
+                                        Switch(
+                                            checked = themeController.isDarkTheme,
+                                            onCheckedChange = { themeController.toggleTheme() },
+                                            colors = SwitchDefaults.colors(
+                                                checkedThumbColor = Color.White,
+                                                checkedTrackColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        )
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = { showSettingsDialog = false }) {
+                                    Text(text = "Cerrar", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                }
+                            },
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(20.dp)
+                        )
                     }
 
                     if (showNotificationsDialog) {

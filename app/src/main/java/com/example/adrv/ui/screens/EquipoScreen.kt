@@ -428,8 +428,8 @@ fun MatchDetailsPanelContent(match: ApiMatch) {
                 if (match.status == "FINISHED" && match.homeScore != null && match.awayScore != null) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "${match.homeScore}\n${match.awayScore}",
-                            fontSize = 36.sp,
+                            text = "${match.homeScore} - ${match.awayScore}", // CORREGIDO
+                            fontSize = 32.sp, // Un poco más pequeño para que quepa bien en una línea
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -597,10 +597,34 @@ fun ClasificacionView() {
                                 }
 
                                 Text(text = "${team.points}", fontSize = 13.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center, modifier = Modifier.weight(0.11f))
-                                Text(text = "${team.playedGames}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f), color = Color.LightGray)
-                                Text(text = "${team.won}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f), color = Color.LightGray)
-                                Text(text = "${team.draw}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f), color = Color.LightGray)
-                                Text(text = "${team.lost}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(0.08f), color = Color.LightGray)
+                                Text(
+                                    text = "${team.playedGames}",
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.weight(0.08f),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant // <- ¡Cambiado!
+                                )
+                                Text(
+                                    text = "${team.won}",
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.weight(0.08f),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant // <- ¡Cambiado!
+                                )
+                                Text(
+                                    text = "${team.draw}",
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.weight(0.08f),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant // <- ¡Cambiado!
+                                )
+                                Text(
+                                    text = "${team.lost}",
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.weight(0.08f),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant // <- ¡Cambiado!
+                                )
                                 Text(text = goalDiffStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.weight(0.11f))
                             }
                         }

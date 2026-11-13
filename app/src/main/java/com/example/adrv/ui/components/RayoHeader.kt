@@ -1,10 +1,8 @@
 package com.example.adrv.ui.components
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -12,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -31,6 +30,7 @@ import com.example.adrv.R
 @Composable
 fun RayoHeader(
     onNotificationClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     unreadCount: Int = 0
 ) {
     Box(
@@ -38,7 +38,20 @@ fun RayoHeader(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // ESCUDO, TÍTULO, SUBTÍTULO Y TU FIRMA CENTRADOS
+        // BOTÓN DE AJUSTES ALINEADO A LA IZQUIERDA
+        IconButton(
+            onClick = onSettingsClick,
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Ajustes",
+                // Usamos onSurface en lugar de Color.White para que se adapte
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        // ESCUDO Y TEXTOS CENTRADOS
         Column(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -53,7 +66,8 @@ fun RayoHeader(
                 text = "RAYO VALLECANO",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                // Usamos onSurface en lugar de Color.White para que se adapte
+                color = MaterialTheme.colorScheme.onSurface,
                 letterSpacing = 1.5.sp
             )
             Text(
@@ -62,7 +76,6 @@ fun RayoHeader(
                 color = MaterialTheme.colorScheme.primary
             )
 
-            // TU FIRMA DISIMULADA EN PEQUEÑO Y GRIS
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "by @Aaronnn17",
@@ -79,9 +92,7 @@ fun RayoHeader(
             BadgedBox(
                 badge = {
                     if (unreadCount > 0) {
-                        Badge(
-                            containerColor = MaterialTheme.colorScheme.error
-                        ) {
+                        Badge(containerColor = MaterialTheme.colorScheme.error) {
                             Text(text = unreadCount.toString(), color = Color.White, fontSize = 10.sp)
                         }
                     }
@@ -91,7 +102,8 @@ fun RayoHeader(
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Notificaciones",
-                        tint = Color.White
+                        // Usamos onSurface en lugar de Color.White para que se adapte
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
