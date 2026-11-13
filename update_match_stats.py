@@ -8,7 +8,10 @@ def extraer_match_center_siguiente():
         "match_center_url": "",
         "cara_a_cara": { "victorias_local": "0", "empates": "0", "victorias_visitante": "0" },
         "enfrentamientos_recientes": [],
-        "racha_ultimos_partidos": [],
+        "racha_ultimos_partidos": {
+            "local": [],
+            "visitante": []
+        },
         "estadisticas_temporada": [],
         "estadisticas_jugadores": []
     }
@@ -19,7 +22,7 @@ def extraer_match_center_siguiente():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             viewport={"width": 1440, "height": 900}
         )
         page = context.new_page()
@@ -49,20 +52,23 @@ def extraer_match_center_siguiente():
             
         print(f"URL encontrada: {url_partido}")
         page.goto(url_partido, wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(3000)
         
-        page.evaluate("""async () => {
-            await new Promise((resolve) => {
-                let totalHeight = 0; let distance = 400;
-                let timer = setInterval(() => {
-                    window.scrollBy(0, distance);
-                    totalHeight += distance;
-                    if (totalHeight >= document.body.scrollHeight) { clearInterval(timer); resolve(); }
-                }, 150);
-            });
-        }""")
-        page.wait_for_timeout(4000)
+        # Scroll lento y profundo en 2 pasadas para obligar a que carguen las gráficas del final
+        for _ in range(2):
+            page.evaluate("""async () => {
+                await new Promise((resolve) => {
+                    let totalHeight = 0; let distance = 300;
+                    let timer = setInterval(() => {
+                        window.scrollBy(0, distance);
+                        totalHeight += distance;
+                        if (totalHeight >= document.body.scrollHeight + 1000) { clearInterval(timer); resolve(); }
+                    }, 200);
+                });
+            }""")
+            page.wait_for_timeout(2500)
 
-        # Usamos TreeWalker para extraer cada texto 100% aislado (sin apelotonamientos de React)
+        # Extraemos con los selectores exactos de tu F12
         extracted = page.evaluate("""() => {
             const getLeafTexts = (selector) => {
                 const el = document.querySelector(selector);
@@ -77,12 +83,34 @@ def extraer_match_center_siguiente():
                 }
                 return texts;
             };
+
+            // Para jugadores, extraemos cada tarjeta de comparación por separado (incluyendo fotos)
+            const getPlayerStats = () => {
+                const container = document.querySelector('[class*="MatchPlayerComparison"]');
+                if (!container) return [];
+                const cards = container.querySelectorAll('[class*="StatBarComparison"]');
+                const results = [];
+                cards.forEach(card => {
+                    const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT, null, false);
+                    const texts = []; let node;
+                    while (node = walker.nextNode()) {
+                        let val = node.nodeValue.trim();
+                        if (val) texts.push(val);
+                    }
+                    const imgs = Array.from(card.querySelectorAll('img')).map(img => img.currentSrc || img.src || '');
+                    if (texts.length >= 3) {
+                        results.push({ texts: texts, imgs: imgs });
+                    }
+                });
+                return results;
+            };
+
             return {
-                h2h: getLeafTexts('.MkSportViewHeadToHead'),
-                recent: getLeafTexts('.MkSportViewRecentMeetings'),
-                trend: getLeafTexts('.MkSportViewTeamTrend'),
-                season: getLeafTexts('.MkSportViewHeadToHeadSeasonStats'),
-                players: getLeafTexts('.MkSportPlayerComparison')
+                h2h: getLeafTexts('[class*="MatchHeadToHeadDoughnut"], .MkSportViewHeadToHead'),
+                recent: getLeafTexts('[class*="MatchHeadToHeadMeetings"], .MkSportViewRecentMeetings'),
+                trend: getLeafTexts('[class*="MatchHeadToHeadTeamTrend"], .MkSportViewTeamTrend'),
+                season: getLeafTexts('[class*="MatchHeadToHeadSeasonStats"]'),
+                players: getPlayerStats()
             };
         }""")
 
@@ -107,8 +135,7 @@ def extraer_match_center_siguiente():
         recent_clean = []
         chunk = []
         for t in extracted.get("recent", []):
-            # Detectamos la fecha (ej: "14 may 2026") para saber cuándo empieza un partido nuevo
-            if re.match(r'\d{1,2}\s+[a-zñ]{3,5}\s+\d{4}', t, re.IGNORECASE):
+            if re.match(r'^\d{1,2}\s+[a-zñ]{3,5}\s+\d{4}$', t, re.IGNORECASE):
                 if len(chunk) >= 4:
                     recent_clean.append({
                         "fecha": chunk[0], "local": chunk[1], "resultado": chunk[2], "visitante": chunk[3],
@@ -124,65 +151,115 @@ def extraer_match_center_siguiente():
             })
         datos_partido["enfrentamientos_recientes"] = recent_clean[:5]
 
-        # 3. ORDENAR RACHA ÚLTIMOS PARTIDOS
-        racha_clean = []
+        # 3. ORDENAR RACHA ÚLTIMOS PARTIDOS (Separando Local y Visitante, y uniendo el "1 - 0")
+        racha_all = []
         chunk = []
+        
+        def procesar_chunk_racha(c):
+            if len(c) >= 6 and c[3] == "-":
+                # Formato cuando el marcador viene separado: [fecha, local, goles_L, "-", goles_V, visitante, estado...]
+                estado_raw = c[6] if len(c) > 6 else ""
+                estado_letra = estado_raw[-1].upper() if estado_raw else ""
+                return {
+                    "fecha": c[0],
+                    "local": c[1],
+                    "resultado": f"{c[2]} - {c[4]}",
+                    "visitante": c[5],
+                    "estado": estado_letra
+                }
+            elif len(c) >= 4:
+                estado_raw = c[4] if len(c) > 4 else ""
+                estado_letra = estado_raw[-1].upper() if estado_raw else ""
+                return {
+                    "fecha": c[0],
+                    "local": c[1],
+                    "resultado": c[2],
+                    "visitante": c[3],
+                    "estado": estado_letra
+                }
+            return None
+
         for t in extracted.get("trend", []):
-            if re.match(r'\d{1,2}/\d{1,2}/\d{2,4}', t):
-                if len(chunk) >= 4:
-                    racha_clean.append({
-                        "fecha": chunk[0], "local": chunk[1], "resultado": chunk[2],
-                        "visitante": chunk[3], "estado": chunk[4] if len(chunk)>4 else ""
-                    })
+            if "datos de:" in t.lower():
+                continue
+            if re.match(r'^\d{1,2}/\d{1,2}/\d{2,4}$', t):
+                item = procesar_chunk_racha(chunk)
+                if item: racha_all.append(item)
                 chunk = [t]
             else:
-                # Limpiamos los textos sucios de la racha de la web
-                if t == 'Empatee': t = 'Empate'
-                elif t == 'Derrotad': t = 'Derrota'
-                elif t == 'Victoriav': t = 'Victoria'
                 chunk.append(t)
-        if len(chunk) >= 4:
-            racha_clean.append({
-                "fecha": chunk[0], "local": chunk[1], "resultado": chunk[2],
-                "visitante": chunk[3], "estado": chunk[4] if len(chunk)>4 else ""
-            })
-        datos_partido["racha_ultimos_partidos"] = racha_clean
+        item = procesar_chunk_racha(chunk)
+        if item: racha_all.append(item)
 
-        # 4. ORDENAR ESTADÍSTICAS TEMPORADA
+        datos_partido["racha_ultimos_partidos"] = {
+            "local": racha_all[:5],
+            "visitante": racha_all[5:10]
+        }
+
+        # 4. ORDENAR ESTADÍSTICAS DE LA TEMPORADA
+        s_raw = [t for t in extracted.get("season", []) if t.lower() != "por partido"]
+        # Quitamos los nombres de los equipos del principio si aparecen
+        if len(s_raw) >= 2 and not re.match(r'^[\d,.]+[%]?$', s_raw[1]):
+            s_raw = s_raw[2:]
+
         season_clean = []
-        s_texts = extracted.get("season", [])
         i = 0
-        while i < len(s_texts):
-            if i + 2 < len(s_texts):
-                v1, v2 = s_texts[i+1], s_texts[i+2]
-                if re.match(r'^[\d,.]+[%]?$', v1) and re.match(r'^[\d,.]+[%]?$', v2):
-                    season_clean.append({"estadistica": s_texts[i], "local": v1, "visitante": v2})
-                    i += 3
-                    continue
-            i += 1
+        is_num = lambda x: bool(re.match(r'^[\d,.]+[%]?$', x))
+
+        while i < len(s_raw):
+            if not is_num(s_raw[i]):
+                titulo = s_raw[i]
+                nums = []
+                j = i + 1
+                while j < len(s_raw) and is_num(s_raw[j]):
+                    nums.append(s_raw[j])
+                    j += 1
+                if len(nums) == 2:
+                    season_clean.append({
+                        "estadistica": titulo,
+                        "local": nums[0],
+                        "visitante": nums[1]
+                    })
+                elif len(nums) >= 4:
+                    season_clean.append({
+                        "estadistica": titulo,
+                        "media_local": nums[0],
+                        "local": nums[1],
+                        "visitante": nums[2],
+                        "media_visitante": nums[3]
+                    })
+                i = j
+            else:
+                i += 1
         datos_partido["estadisticas_temporada"] = season_clean
 
-        # 5. ORDENAR ESTADÍSTICAS JUGADORES
+        # 5. ORDENAR ESTADÍSTICAS DE JUGADORES
         players_clean = []
-        p_texts = extracted.get("players", [])
-        i = 0
-        while i < len(p_texts):
-            if re.match(r'^[\d,.]+[%]?$', p_texts[i]):
-                if i >= 2 and i + 2 < len(p_texts) and re.match(r'^[\d,.]+[%]?$', p_texts[i+1]):
-                    players_clean.append({
-                        "estadistica": p_texts[i-2],
-                        "jugador_local": p_texts[i-1], "valor_local": p_texts[i],
-                        "valor_visitante": p_texts[i+1], "jugador_visitante": p_texts[i+2]
-                    })
-                    i += 3
-                    continue
-            i += 1
+        for card in extracted.get("players", []):
+            t_list = card.get("texts", [])
+            imgs = card.get("imgs", [])
+            if not t_list: continue
+            
+            titulo = t_list[0]
+            nums = [x for x in t_list[1:] if is_num(x)]
+            names = [x for x in t_list[1:] if not is_num(x)]
+            
+            if len(nums) >= 2 and len(names) >= 2:
+                players_clean.append({
+                    "estadistica": titulo,
+                    "jugador_local": names[0],
+                    "valor_local": nums[0],
+                    "foto_local": imgs[0] if len(imgs) > 0 else "",
+                    "jugador_visitante": names[1],
+                    "valor_visitante": nums[1],
+                    "foto_visitante": imgs[1] if len(imgs) > 1 else ""
+                })
         datos_partido["estadisticas_jugadores"] = players_clean
 
         with open("match_stats.json", "w", encoding="utf-8") as f:
             json.dump(datos_partido, f, ensure_ascii=False, indent=4)
 
-        print("¡Archivo match_stats.json completado con datos perfectamente estructurados!")
+        print("¡Archivo match_stats.json completado al 100%!")
         browser.close()
 
 if __name__ == "__main__":
