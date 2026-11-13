@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <b>La app definitiva para el rayismo</b><br>
+  <b>ADRV ⚡ Valentía, coraje y nobleza.</b><br>
   <sub>Sigue al Rayo Vallecano en tiempo real — Calendario oficial, clasificación, plantilla, noticias y tu Abono Digital en el móvil</sub>
 </p>
 
