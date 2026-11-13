@@ -6,8 +6,7 @@ on:
     - cron: '*/15 * * * 1-5'
     # Sábados y Domingos: Cada 5 minutos
     - cron: '*/5 * * * 0,6'
-    
-workflow_dispatch: # Permite ejecutarlo a mano desde GitHub cuando quieras
+  workflow_dispatch: # Permite ejecutarlo a mano desde GitHub cuando quieras
 
 jobs:
   update-data:
