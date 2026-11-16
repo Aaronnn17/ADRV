@@ -1,7 +1,18 @@
 {
-    "updatedAt": "2026-11-16T20:00:48.460458",
+    "updatedAt": "2026-11-16T20:30:44.922787",
     "totalNews": 60,
     "news": [
+        {
+            "id": "76733bf7-783b-4bdf-96df-ddccd0588d35",
+            "title": "Información de las entradas para el Real Betis Balompié - Rayo Vallecano",
+            "link": "https://www.rayovallecano.es/noticias/informacion-de-las-entradas-para-el-real-betis-balompie-rayo-vallecano-2026",
+            "published": "Mon, 16 Nov 2026 20:03:30 +0000",
+            "summary": "",
+            "content": "<p style=\"text-align: justify;\">El <strong>Rayo Vallecano</strong> informa que las entradas para el partido ante el Real Betis Balompié, del sábado 28 de noviembre en el <strong>Estadio La Cartuja de Sevilla</strong>, se podrán adquirir<strong> </strong>en la taquilla central del Estadio de Vallecas<strong> </strong>el<strong> </strong>martes 17 de noviembre en horario de 11:00 a 20:00 horas.</p>\n<p style=\"text-align: justify;\">El precio de cada entrada será de<strong> 41,50 €. </strong>Deberá presentarse DNI en el momento de la compra.</p>",
+            "categories": [],
+            "image": "https://statics-maker.llt-services.com/ray/images/2026/11/16/original/966a7bae-2426-4ce9-875f-e306ee3b0640-539.jpg",
+            "fuente": "Oficial"
+        },
         {
             "id": "https://unionrayo.es/aficionados-del-crystal-palace-visitan-vallecas-y-acceden-a-los-vestuarios-del-rayo/",
             "title": "Aficionados del Crystal Palace visitan Vallecas durante su estancia en Madrid",
@@ -667,19 +678,6 @@
                 "primer equipo"
             ],
             "image": "https://statics-maker.llt-services.com/ray/images/2026/10/03/original/21ea1f3d-f8c1-4c87-8a43-c06822d810bd-685.jpg",
-            "fuente": "Oficial"
-        },
-        {
-            "id": "d8ed6937-a5b8-45af-b288-1e4956c55fb2",
-            "title": "Comunicado oficial",
-            "link": "https://www.rayovallecano.es/noticias/comunicado-oficial-oct-26",
-            "published": "Sat, 03 Oct 2026 16:13:39 +0000",
-            "summary": "",
-            "content": "<p style=\"text-align: justify;\">El Club desea denunciar públicamente el gravísimo hecho que se ha producido hoy en el Estadio de Vallecas durante el primer tiempo de la celebración del X Trofeo de Vallecas.</p>\n<p style=\"text-align: justify;\">Los hechos han sido los siguientes y se dividen en tres secuencias. En un primer momento, un grupo de personas mayoritariamente encapuchadas, entre las cuales se ha podido identificar con claridad a algún conocido miembro del grupo ultra Bukaneros, han intentado asaltar el palco desde el exterior del graderío. Posteriormente, desde la puerta lateral de acceso al palco situada en el vomitorio, han golpeado insistentemente con ánimo de acceder al mismo. Al no lograrlo, por último, han intentado acceder al Palco de Honor desde la puerta principal, por lo que la seguridad privada se ha visto obliga a cerrar ese acceso para garantizar la seguridad de las autoridades que se encontraban en el interior del mismo. Durante estos instantes, por parte de las distintas autoridades que se encontraban en el palco, se ha vivido una situación terriblemente desagradable y por supuesto intolerable. Nadie debería sentir miedo al acudir a un partido de fútbol.</p>\n<p style=\"text-align: justify;\">Como decíamos con anterioridad, entre los asaltantes, se ha podido identificar a algunos conocidos miembros del grupo ultra Bukaneros, entre ellos 2 de los 3 portavoces de la asamblea abierta rayista de fecha 02 de agosto de 2026, convocada por la Plataforma ADRV, organización estrechamente vinculada a Bukaneros. En dicha asamblea, manifestaron frases de extrema gravedad, que en ese momento se normalizaron: “Esta semana nos hemos reunido con el equipo de gobierno”; “Una cosa que no os hemos comentado, es que la consejería nos dijo que la concesión se ha anulado para el Rayo Vallecano y que no la va a volver a firmar mientras este tío siga siendo presidente del Rayo Vallecano”; “Nos dijeron que la concesión mientras esté Martín Presa al frente del Rayo Vallecano, no la va a volver a firmar con el Rayo Vallecano de Madrid SAD como empresa”; “Os hemos dicho que nos hemos reunido con los actuales gestores de la Comunidad de Madrid”. Este es el caldo de cultivo para lo que ha sucedido hoy en el Estadio de Vallecas. </p>\n<p style=\"text-align: justify;\">Rayo Vallecano de Madrid SAD nunca cederá ante el acoso y la extorsión. <br>De nuevo, esperamos la condena publica de todo lo acontecido por todas las autoridades y diferentes grupos políticos. </p>\n<p style=\"text-align: justify;\">Ante la violencia no pueden existir dudas ni bandos. </p>\n<p style=\"text-align: justify;\">El club quiere mostrar su más absoluto agradecimiento a los miembros de la seguridad privada del club y a los miembros de Policía Nacional que han acudido ante el aviso del Club, sin cuya valiente y eficaz intervención, podríamos estar ahora lamentando una tragedia de dimensiones vitales.</p>",
-            "categories": [
-                "club"
-            ],
-            "image": "https://statics-maker.llt-services.com/ray/images/2023/06/09/optimized/3c0ea6c4-1260-4d16-9fc4-06053d190d83-404.jpg",
             "fuente": "Oficial"
         },
         {
