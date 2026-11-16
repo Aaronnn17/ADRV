@@ -69,6 +69,7 @@
 * [x] **Historial de enfrentamientos directos:** Estadísticas contra el próximo rival de la jornada. **(v0.3)**
 * [ ] **Traducción a más idiomas:** Soporte para inglés y otros idiomas para peñas rayistas de fuera de Madrid.
 * [ ] **Estadísticas ampliadas de cada jugador:** Desplegable de cada jugador con datos y estadísticas personales.
+* [ ] **Opción de actualizar desde la propia app:** Poder actualizar desde la propia app siempre a la última versión disponible.
 
 ---
 
