@@ -2,16 +2,22 @@ name: Actualizar Datos de la API
 
 on:
   schedule:
-    # Lunes a Viernes: Cada 15 minutos
-    - cron: '*/15 * * * 1-5'
-    # Sábados y Domingos: Cada 5 minutos
-    - cron: '*/5 * * * 0,6'
+    # Lunes a Viernes: Cada 30 minutos (minutos 7 y 37 para evitar atascos en GitHub)
+    - cron: '7,37 * * * 1-5'
+    # Sábados y Domingos: Cada 15 minutos en minutos desplazados
+    - cron: '2,17,32,47 * * * 0,6'
   
-  workflow_dispatch: # Permite ejecutarlo a mano desde GitHub cuando quieras
+  workflow_dispatch:
+
+# Evita que dos ejecuciones se solapen y bloqueen la cola del fin de semana
+concurrency:
+  group: update-data-group
+  cancel-in-progress: false
 
 jobs:
   update-data:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,7 +27,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      # INSTALAMOS LAS LIBRERÍAS Y EL NAVEGADOR CHROMIUM REAL (IGUAL QUE EN SQUAD)
       - name: Instalar dependencias de Python
         run: |
           pip install requests pycountry beautifulsoup4 cloudscraper playwright
@@ -53,5 +58,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add matches.json standings.json squad.json news.json match_stats.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Actualización automática de Calendario, Clasificación, Plantilla, Noticias y Estadísticas"
-          git push
+          git pull --rebase origin main || git pull --rebase origin master || true
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Actualización automática de datos ADRV" && git push)
