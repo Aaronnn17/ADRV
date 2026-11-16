@@ -63,10 +63,10 @@
 
 ## 🚀 Próximas Funcionalidades / To-Do
 
-* [ ] **Notificaciones Push:** Avisos en tiempo real para alineaciones, goles y pitido inicial.
+* [x] **Notificaciones Push:** Avisos en tiempo real para alineaciones, goles y pitido inicial. **(v0.3)**
 * [x] **Modo Oscuro / Claro automático:** Adaptación completa a las preferencias del sistema del móvil. **(v0.2)**
 * [ ] **Widgets para la pantalla de inicio:** Widgets rápidos de Android para ver el próximo partido del Rayo de un vistazo.
-* [ ] **Historial de enfrentamientos directos:** Estadísticas contra el próximo rival de la jornada.
+* [x] **Historial de enfrentamientos directos:** Estadísticas contra el próximo rival de la jornada. **(v0.3)**
 * [ ] **Traducción a más idiomas:** Soporte para inglés y otros idiomas para peñas rayistas de fuera de Madrid.
 
 ---
