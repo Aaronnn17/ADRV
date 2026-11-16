@@ -2,14 +2,14 @@ name: Actualizar Datos de la API
 
 on:
   schedule:
-    # Lunes a Viernes: Cada 30 minutos (minutos 7 y 37 para evitar el atasco de en punto :00 y :30 de GitHub)
+    # Lunes a Viernes: Cada 30 minutos (minutos 7 y 37 para evitar atascos en GitHub)
     - cron: '7,37 * * * 1-5'
-    # Sábados y Domingos: Cada 15 minutos en minutos desplazados (evita que GitHub descarte el job)
+    # Sábados y Domingos: Cada 15 minutos en minutos desplazados
     - cron: '2,17,32,47 * * * 0,6'
   
   workflow_dispatch:
 
-# Evita que dos ejecuciones se pisen y bloqueen la cola del fin de semana
+# Evita que dos ejecuciones se solapen y bloqueen la cola del fin de semana
 concurrency:
   group: update-data-group
   cancel-in-progress: false
@@ -26,12 +26,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: Instalar dependencias de Python
         run: |
           pip install requests pycountry beautifulsoup4 cloudscraper playwright
-          playwright install chromium
+          playwright install chromium --with-deps
 
       - name: Ejecutar script de Calendario
         env:
