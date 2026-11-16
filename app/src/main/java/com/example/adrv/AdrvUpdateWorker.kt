@@ -11,7 +11,9 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.adrv.data.RayoRepository
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 class AdrvUpdateWorker(
@@ -27,8 +29,6 @@ class AdrvUpdateWorker(
 
         val notifyNews = prefs.getBoolean("notify_news", true)
         val notifyMatches = prefs.getBoolean("notify_matches", true)
-
-        // ¡Ya podemos descomentar esto y usarlo!
         val allowedSources = prefs.getStringSet("notify_sources", emptySet()) ?: emptySet()
 
         return try {
@@ -39,47 +39,53 @@ class AdrvUpdateWorker(
                 val lastNewsTitle = prefs.getString("last_news_title", "")
 
                 if (latestNews != null && latestNews.title != lastNewsTitle) {
-                    // Usamos tu propiedad "fuente"
                     val fuenteNoticia = latestNews.fuente
-
-                    // Si el set está vacío (todas permitidas) o si contiene la fuente actual:
                     if (allowedSources.isEmpty() || allowedSources.contains(fuenteNoticia)) {
                         showNotification(
                             id = 1924,
                             title = "Nueva noticia: $fuenteNoticia",
                             message = latestNews.title,
                             targetType = "news",
-                            targetData = latestNews.link // Pasamos el link de la noticia
+                            targetData = latestNews.link
                         )
                     }
-
-                    // Guardamos siempre el título para no volver a evaluar esta misma noticia en el futuro
                     prefs.edit().putString("last_news_title", latestNews.title).apply()
                 }
             }
 
-            // --- 2. COMPROBAR PARTIDOS (Horarios confirmados) ---
+            // --- 2. COMPROBAR PRÓXIMOS 5 PARTIDOS (Horarios confirmados o modificados) ---
             if (notifyMatches) {
                 val rayoData = RayoRepository.fetchRayoData()
-                val nextMatch = rayoData?.partidos?.firstOrNull { it.status != "FINISHED" }
-                val lastSavedMatchDate = prefs.getString("last_match_date", "")
+                val today = LocalDate.now(ZoneId.of("Europe/Madrid"))
 
-                if (nextMatch != null) {
-                    if (!lastSavedMatchDate.isNullOrEmpty() && nextMatch.dateText != lastSavedMatchDate) {
+                val upcomingMatches = rayoData?.partidos?.filter { match ->
+                    try {
+                        !ZonedDateTime.parse(match.dateText)
+                            .withZoneSameInstant(ZoneId.of("Europe/Madrid"))
+                            .toLocalDate()
+                            .isBefore(today)
+                    } catch (e: Exception) { false }
+                }?.take(5) ?: emptyList()
+
+                upcomingMatches.forEachIndexed { index, match ->
+                    val prefKey = "worker_match_date_${match.id}"
+                    val lastSavedDate = prefs.getString(prefKey, "") ?: ""
+
+                    if (lastSavedDate.isNotEmpty() && lastSavedDate != match.dateText) {
                         val horaFormateada = try {
-                            val instant = Instant.parse(nextMatch.dateText)
+                            val instant = Instant.parse(match.dateText)
                             instant.atZone(ZoneId.of("Europe/Madrid")).format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
-                        } catch (e: Exception) { nextMatch.dateText }
+                        } catch (e: Exception) { match.dateText }
 
                         showNotification(
-                            id = 1925,
-                            title = "Horario Confirmado / Modificado",
-                            message = "${nextMatch.homeTeam} vs ${nextMatch.awayTeam} -> $horaFormateada",
+                            id = 1925 + index, // ID único por partido para que no se pisen entre sí
+                            title = "⚽ ¡Horario confirmado / Modificado!",
+                            message = "${match.homeTeam} vs ${match.awayTeam} -> $horaFormateada",
                             targetType = "match",
-                            targetData = nextMatch.dateText // Pasamos la fecha del partido
+                            targetData = match.dateText
                         )
                     }
-                    prefs.edit().putString("last_match_date", nextMatch.dateText).apply()
+                    prefs.edit().putString(prefKey, match.dateText).apply()
                 }
             }
 
@@ -89,17 +95,17 @@ class AdrvUpdateWorker(
         }
     }
 
-
     private fun showNotification(id: Int, title: String, message: String, targetType: String, targetData: String) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "adrv_updates_channel"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Actualizaciones del Rayo", NotificationManager.IMPORTANCE_DEFAULT)
+            val channel = NotificationChannel(channelId, "Actualizaciones del Rayo", NotificationManager.IMPORTANCE_HIGH)
             notificationManager.createNotificationChannel(channel)
         }
 
         val intent = Intent(context, MainActivity::class.java).apply {
+            action = "ACTION_${targetType}_$id" // Evita que Android mezcle el PendingIntent de noticia y partido
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("target_type", targetType)
             putExtra("target_data", targetData)
@@ -114,7 +120,7 @@ class AdrvUpdateWorker(
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()

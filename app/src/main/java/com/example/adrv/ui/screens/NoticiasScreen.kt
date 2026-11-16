@@ -1,5 +1,6 @@
 package com.example.adrv.ui.screens
 
+import android.content.Context
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,12 +15,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,19 +34,23 @@ import com.example.adrv.R
 import com.example.adrv.data.RayoRepository
 import com.example.adrv.model.News
 import com.example.adrv.ui.components.bounceClick
-import android.content.Context
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun NoticiasScreen() {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("adrv_prefs", Context.MODE_PRIVATE) }
+
     var allNews by remember { mutableStateOf<List<News>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedSource by remember { mutableStateOf("Todos") }
 
     var selectedNewsUrl by remember { mutableStateOf<String?>(null) }
     var selectedNewsTitle by remember { mutableStateOf("") }
+
+    // Estado reactivo para que los rayos rojos desaparezcan al instante
+    var readNewsIds by remember {
+        mutableStateOf(prefs.getStringSet("read_news_ids", emptySet()) ?: emptySet())
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -65,26 +74,21 @@ fun NoticiasScreen() {
         allNews.filter { it.fuente.equals(selectedSource, ignoreCase = true) }
     }
 
+    val unreadCount = allNews.count { !readNewsIds.contains(it.id) }
     val sources = listOf("Todos", "Rayo Vallecano", "Unión Rayo", "Bukaneros", "Matagigantes")
 
-    // TRANSICIÓN ANIMADA ENTRE LISTA Y VISOR WEB
     AnimatedContent(
         targetState = selectedNewsUrl,
         transitionSpec = {
             if (targetState != null) {
-                // Al abrir la noticia: Sube desde abajo
-                slideInVertically(initialOffsetY = { fullHeight -> fullHeight }) + fadeIn() togetherWith
-                        fadeOut()
+                slideInVertically(initialOffsetY = { fullHeight -> fullHeight }) + fadeIn() togetherWith fadeOut()
             } else {
-                // Al cerrar la noticia: Baja y desaparece
-                fadeIn() togetherWith
-                        slideOutVertically(targetOffsetY = { fullHeight -> fullHeight }) + fadeOut()
+                fadeIn() togetherWith slideOutVertically(targetOffsetY = { fullHeight -> fullHeight }) + fadeOut()
             }
         },
         label = "TransicionNoticias"
     ) { currentUrl ->
         if (currentUrl != null) {
-            // VISOR WEB ANIMADO
             WebViewScreen(
                 url = currentUrl,
                 title = selectedNewsTitle,
@@ -94,7 +98,6 @@ fun NoticiasScreen() {
                 }
             )
         } else {
-            // PORTADA DE NOTICIAS ORIGINAL (Lista y Filtros)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -111,9 +114,7 @@ fun NoticiasScreen() {
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        item {
-                            Spacer(modifier = Modifier.height(4.dp))
-                        }
+                        item { Spacer(modifier = Modifier.height(4.dp)) }
 
                         // Filtros horizontales
                         item {
@@ -141,6 +142,48 @@ fun NoticiasScreen() {
                             }
                         }
 
+                        // Botón para marcar todas como leídas si hay alguna sin leer
+                        if (unreadCount > 0) {
+                            item {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "$unreadCount sin leer",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            val updated = readNewsIds.toMutableSet().apply {
+                                                allNews.forEach { add(it.id) }
+                                            }
+                                            readNewsIds = updated
+                                            prefs.edit().putStringSet("read_news_ids", updated).apply()
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DoneAll,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Marcar todas como leídas",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         if (filteredNews.isEmpty()) {
                             item {
                                 Box(
@@ -154,9 +197,15 @@ fun NoticiasScreen() {
                             }
                         } else {
                             items(filteredNews) { item ->
+                                val isUnread = !readNewsIds.contains(item.id)
                                 ModernNewsCard(
                                     item = item,
+                                    isUnread = isUnread,
                                     onClick = {
+                                        val updated = readNewsIds.toMutableSet().apply { add(item.id) }
+                                        readNewsIds = updated
+                                        prefs.edit().putStringSet("read_news_ids", updated).apply()
+
                                         if (item.link.isNotEmpty()) {
                                             selectedNewsUrl = item.link
                                             selectedNewsTitle = item.title
@@ -175,26 +224,11 @@ fun NoticiasScreen() {
 }
 
 @Composable
-fun ModernNewsCard(item: News, onClick: () -> Unit) {
-    val context = LocalContext.current
-    val prefs = context.getSharedPreferences("adrv_prefs", Context.MODE_PRIVATE)
-
-    // Recuperamos los IDs leídos
-    val readNews = prefs.getStringSet("read_news_ids", emptySet()) ?: emptySet()
-    val isUnread = !readNews.contains(item.id)
-
+fun ModernNewsCard(item: News, isUnread: Boolean, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .bounceClick {
-                // 1. Guardamos el ID como leído al hacer clic
-                val currentRead = prefs.getStringSet("read_news_ids", mutableSetOf()) ?: mutableSetOf()
-                val updatedRead = currentRead.toMutableSet().apply { add(item.id) }
-                prefs.edit().putStringSet("read_news_ids", updatedRead).apply()
-
-                // 2. Ejecutamos la acción original de abrir la noticia
-                onClick()
-            },
+            .bounceClick { onClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
@@ -212,7 +246,6 @@ fun ModernNewsCard(item: News, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // SI LA NOTICIA NO ESTÁ LEÍDA, MOSTRAMOS EL RAYO ROJO
                     if (isUnread) {
                         Icon(
                             imageVector = Icons.Default.FlashOn,
@@ -259,7 +292,6 @@ fun ModernNewsCard(item: News, onClick: () -> Unit) {
                     }
                 }
 
-                // Fecha traducida
                 Text(
                     text = formatSpanishNewsDate(item.published),
                     fontSize = 12.sp,
@@ -293,24 +325,20 @@ fun ModernNewsCard(item: News, onClick: () -> Unit) {
     }
 }
 
-// Formateador robusto corregido para extraer correctamente el año
 fun formatSpanishNewsDate(dateString: String?): String {
     if (dateString.isNullOrBlank()) return ""
     return try {
         val cleanStr = dateString.lowercase()
-
         val mesesMap = mapOf(
             "jan" to "enero", "feb" to "febrero", "mar" to "marzo",
             "apr" to "abril", "may" to "mayo", "jun" to "junio",
             "jul" to "julio", "aug" to "agosto", "sep" to "septiembre",
             "oct" to "octubre", "nov" to "noviembre", "dec" to "diciembre"
         )
-
         var dia = ""
         var mesText = ""
-        var anio = "2026" // Año por defecto seguro
+        var anio = "2026"
 
-        // 1. Buscar patrón numérico estándar YYYY-MM-DD
         val numMatch = Regex("(\\d{4})-(\\d{2})-(\\d{2})").find(cleanStr)
         if (numMatch != null) {
             val (y, m, d) = numMatch.destructured
@@ -319,7 +347,6 @@ fun formatSpanishNewsDate(dateString: String?): String {
             return "${d.toInt()} de $mesNombre, $y"
         }
 
-        // 2. Buscar meses en texto (inglés)
         for ((eng, esp) in mesesMap) {
             if (cleanStr.contains(eng)) {
                 mesText = esp
@@ -327,7 +354,6 @@ fun formatSpanishNewsDate(dateString: String?): String {
             }
         }
 
-        // 3. Extraer números para encontrar el día y el año de 4 cifras
         val numbers = Regex("\\d+").findAll(cleanStr).map { it.value }.toList()
         if (numbers.isNotEmpty()) {
             for (num in numbers) {

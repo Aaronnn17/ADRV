@@ -206,9 +206,9 @@ fun HoyScreen() {
                     val rival = if (match.homeTeam.contains("Rayo", ignoreCase = true)) match.awayTeam else match.homeTeam
 
                     val alertMsg = if ((oldTime == "00:00" || oldTime == "01:00") && (newTime != "00:00" && newTime != "01:00")) {
-                        "MATCH|${match.id}|¡Horario Confirmado! El partido contra $rival será el $newDateStr a las $newTime."
+                        "MATCH|${match.id}|⚽ ¡Horario confirmado! El partido contra $rival será el $newDateStr a las $newTime."
                     } else {
-                        "MATCH|${match.id}|Cambio de horario: El partido contra $rival se ha movido al $newDateStr a las $newTime."
+                        "MATCH|${match.id}|⚽ Cambio de horario: El partido contra $rival se ha movido al $newDateStr a las $newTime."
                     }
 
                     newAlerts.add(alertMsg)
@@ -218,18 +218,21 @@ fun HoyScreen() {
                 sharedPrefs.edit().putString("last_match_date_${match.id}", match.dateText).apply()
             }
 
-            val latestNews = newsData?.firstOrNull()
-            if (latestNews != null) {
-                val savedNewsTitle = sharedPrefs.getString("last_news_title", "") ?: ""
+            val knownNewsIds = sharedPrefs.getStringSet("known_news_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+            val isFirstRun = knownNewsIds.isEmpty()
 
-                if (savedNewsTitle.isNotEmpty() && savedNewsTitle != latestNews.title) {
-                    val alertMsg = "NEWS|${latestNews.id}|🗞️ Nueva noticia: ${latestNews.title}"
-                    newAlerts.add(alertMsg)
-                    storedAlerts.add(0, alertMsg)
+            newsData?.take(5)?.reversed()?.forEach { newsItem ->
+                if (!knownNewsIds.contains(newsItem.id)) {
+                    if (!isFirstRun) {
+                        val alertMsg = "NEWS|${newsItem.id}|🗞️ Nueva noticia: ${newsItem.title}"
+                        newAlerts.add(alertMsg)
+                        storedAlerts.removeAll { it.contains(newsItem.title) }
+                        storedAlerts.add(0, alertMsg)
+                    }
+                    knownNewsIds.add(newsItem.id)
                 }
-
-                sharedPrefs.edit().putString("last_news_title", latestNews.title).apply()
             }
+            sharedPrefs.edit().putStringSet("known_news_ids", knownNewsIds).apply()
 
             if (newAlerts.isNotEmpty()) {
                 dynamicNotifications = newAlerts
@@ -301,55 +304,98 @@ fun HoyScreen() {
                         } else if (nextMatch != null) {
                             NextMatchCard(match = nextMatch, onClick = { showMatchStatsSheet = true })
 
+                            // Estado reactivo para los IDs leídos en HoyScreen
+                            val prefsHistory = remember { context.getSharedPreferences("adrv_prefs", Context.MODE_PRIVATE) }
+                            var readItemsState by remember {
+                                mutableStateOf(prefsHistory.getStringSet("read_news_ids", emptySet()) ?: emptySet())
+                            }
+
                             if (novedadesHistorial.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(24.dp))
 
                                 Column(modifier = Modifier.fillMaxWidth()) {
-                                    Text(
-                                        text = "Últimas Novedades",
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 18.sp,
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-                                    )
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Últimas Novedades",
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 18.sp
+                                        )
+                                        TextButton(
+                                            onClick = {
+                                                val updated = readItemsState.toMutableSet()
+                                                novedadesHistorial.forEach { novedad ->
+                                                    val parts = novedad.split("|", limit = 3)
+                                                    val idPart = parts.getOrNull(1) ?: ""
+                                                    val textPart = parts.getOrNull(2) ?: novedad
+                                                    if (idPart.isNotEmpty()) updated.add(idPart)
+                                                    // También marcamos el ID real de la noticia si coincide por título
+                                                    val titulo = textPart.substringAfter(":").trim()
+                                                    newsData?.find { it.title.contains(titulo, ignoreCase = true) }?.let {
+                                                        updated.add(it.id)
+                                                    }
+                                                    updated.add(novedad.hashCode().toString())
+                                                }
+                                                readItemsState = updated
+                                                prefsHistory.edit().putStringSet("read_news_ids", updated).apply()
+                                            }
+                                        ) {
+                                            Text(
+                                                text = "Marcar leídas",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
 
                                     novedadesHistorial.forEach { novedad ->
                                         val parts = novedad.split("|", limit = 3)
-                                        val type = parts.getOrNull(0) ?: ""
-                                        val id = parts.getOrNull(1) ?: ""
-                                        val text = parts.getOrNull(2) ?: novedad
+                                        val type = if (parts.size == 3) parts[0] else ""
+                                        val rawId = if (parts.size == 3) parts[1] else ""
+                                        val rawText = if (parts.size == 3) parts[2] else novedad
+                                        val isMatchAlert = type == "MATCH" || rawText.startsWith("¡Horario") || rawText.startsWith("Cambio de horario")
+                                        val text = if (isMatchAlert && !rawText.startsWith("⚽")) {
+                                            "⚽ $rawText"
+                                        } else {
+                                            rawText
+                                        }
 
-                                        // Comprobamos si ya fue leído
-                                        val prefsHistory = context.getSharedPreferences("adrv_prefs", Context.MODE_PRIVATE)
-                                        val readItems = prefsHistory.getStringSet("read_news_ids", emptySet()) ?: emptySet()
-                                        val isUnread = !readItems.contains(id)
+                                        // Resolvemos el ID real incluso para alertas antiguas sin formato "|"
+                                        val matchedNewsItem = remember(newsData, rawId, text) {
+                                            if (rawId.isNotEmpty()) {
+                                                newsData?.find { it.id == rawId }
+                                            } else if (text.contains("noticia", ignoreCase = true)) {
+                                                val titulo = text.substringAfter(":").trim()
+                                                newsData?.find { it.title.contains(titulo, ignoreCase = true) }
+                                            } else null
+                                        }
+
+                                        val effectiveId = matchedNewsItem?.id ?: rawId.ifEmpty { novedad.hashCode().toString() }
+                                        val isUnread = !readItemsState.contains(effectiveId) && (rawId.isEmpty() || !readItemsState.contains(rawId))
 
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(vertical = 4.dp)
                                                 .bounceClick {
-                                                    // Marcamos como leído al hacer clic
-                                                    val currentRead = prefsHistory.getStringSet("read_news_ids", mutableSetOf()) ?: mutableSetOf()
-                                                    val updatedRead = currentRead.toMutableSet().apply { add(id) }
+                                                    val updatedRead = readItemsState.toMutableSet().apply {
+                                                        add(effectiveId)
+                                                        if (rawId.isNotEmpty()) add(rawId)
+                                                    }
+                                                    readItemsState = updatedRead
                                                     prefsHistory.edit().putStringSet("read_news_ids", updatedRead).apply()
 
-                                                    if (type == "NEWS") {
-                                                        val newsItem = newsData?.find { it.id == id }
-                                                        if (newsItem != null && newsItem.link.isNotEmpty()) {
-                                                            selectedNewsUrl = newsItem.link
-                                                            selectedNewsTitle = newsItem.title
-                                                        }
-                                                    } else if (type == "MATCH") {
-                                                        selectedMatchForDialog = rayoData?.partidos?.find { it.id.toString() == id }
-                                                    } else {
-                                                        if (text.contains("noticia", ignoreCase = true)) {
-                                                            val titulo = text.substringAfter(":").trim()
-                                                            val newsItem = newsData?.find { it.title.contains(titulo, ignoreCase = true) }
-                                                            if (newsItem != null && newsItem.link.isNotEmpty()) {
-                                                                selectedNewsUrl = newsItem.link
-                                                                selectedNewsTitle = newsItem.title
-                                                            }
-                                                        }
+                                                    if (type == "MATCH") {
+                                                        selectedMatchForDialog = rayoData?.partidos?.find { it.id.toString() == rawId }
+                                                    } else if (matchedNewsItem != null && matchedNewsItem.link.isNotEmpty()) {
+                                                        selectedNewsUrl = matchedNewsItem.link
+                                                        selectedNewsTitle = matchedNewsItem.title
                                                     }
                                                 },
                                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
@@ -360,7 +406,6 @@ fun HoyScreen() {
                                                 modifier = Modifier.padding(16.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                // Solo muestra el rayo si no se ha leído
                                                 if (isUnread) {
                                                     Icon(
                                                         imageVector = Icons.Default.FlashOn,
@@ -544,20 +589,39 @@ fun HoyScreen() {
         }
     }
 
-    // Diálogo flotante transparente para el partido
+    // POP-UP LIMPIO, OPACO Y DEL MISMO COLOR QUE EL FONDO DE LA APP
     if (selectedMatchForDialog != null) {
-        AlertDialog(
-            onDismissRequest = { selectedMatchForDialog = null },
-            confirmButton = {
-                TextButton(onClick = { selectedMatchForDialog = null }) {
-                    Text("Cerrar", color = MaterialTheme.colorScheme.primary)
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { selectedMatchForDialog = null }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.background, // 100% opaco, idéntico al fondo de la app
+                tonalElevation = 0.dp, // Cero tinte rojizo
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    NextMatchCard(
+                        match = selectedMatchForDialog!!,
+                        subtitle = "Partido confirmado"
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = { selectedMatchForDialog = null }
+                    ) {
+                        Text(
+                            text = "Cerrar",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
-            },
-            text = {
-                NextMatchCard(match = selectedMatchForDialog!!)
-            },
-            containerColor = Color.Transparent
-        )
+            }
+        }
     }
 
     // EL PANEL INFERIOR SUAVE PARA LAS ESTADÍSTICAS DEL PARTIDO
@@ -567,7 +631,11 @@ fun HoyScreen() {
             onDismissRequest = { showMatchStatsSheet = false },
             sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
-            MatchStatsScreen(stats = matchStatsData!!, matchInfo = nextMatch)
+            MatchStatsScreen(
+                stats = matchStatsData!!,
+                matchInfo = nextMatch,
+                allMatches = rayoData?.partidos ?: emptyList()
+            )
         }
     }
 } // <- Cierre principal de HoyScreen()
@@ -699,7 +767,11 @@ fun StatRow(label: String, homeValue: String, awayValue: String) {
 }
 
 @Composable
-fun NextMatchCard(match: com.example.adrv.model.ApiMatch, onClick: () -> Unit = {}) {
+fun NextMatchCard(
+    match: com.example.adrv.model.ApiMatch,
+    subtitle: String = "Próximo partido", // <-- 1. AÑADIDO AQUÍ
+    onClick: () -> Unit = {}
+) {
     val formattedDateTime = remember(match.dateText) {
         try {
             val utcDateTime = ZonedDateTime.parse(match.dateText)
@@ -775,11 +847,11 @@ fun NextMatchCard(match: com.example.adrv.model.ApiMatch, onClick: () -> Unit = 
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // APLICAMOS EL PULSO AQUÍ: El texto "Próximo partido" respirará suavemente
+            // APLICAMOS EL PULSO AQUÍ: Mostrará "Próximo partido" en portada o "Partido confirmado" en el pop-up
             Text(
-                text = "Próximo partido",
+                text = subtitle, // <-- 2. CAMBIADO AQUÍ (antes ponía "Próximo partido")
                 fontSize = 13.sp,
-                color = RayoRed, // Lo ponemos en rojo corporativo para que resalte más con el pulso
+                color = RayoRed,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.scale(scalePulse)
             )
