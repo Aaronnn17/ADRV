@@ -4,6 +4,32 @@ Todas las actualizaciones, características, mejoras y correcciones notables de 
 
 ---
 
+## [0.3.0] - 2026-11-16
+
+### 🚀 Nuevas Funcionalidades y Mejoras Principales
+
+* **Sistema de Notificaciones Push y Worker en Segundo Plano:**
+  * Integración de `WorkManager` para comprobar de forma periódica y autónoma las actualizaciones de la API y nuevos artículos en segundo plano.
+  * Avisos automáticos en el dispositivo al detectar nuevas noticias o confirmaciones oficiales de horarios de partidos.
+  * Navegación inteligente (*Deep Linking* interno): al pulsar una notificación push de noticia, se abre directamente el visor web correspondiente; al pulsar la de un partido confirmado, la app dirige al usuario al calendario con el detalle del encuentro.
+* **Gestión Inteligente de Novedades y Estado "Leído / No Leído":**
+  * Historial persistente en la pantalla de inicio ("Últimas Novedades") con indicadores de elementos pendientes mediante el icono de un rayo (⚡).
+  * Sistema interactivo de lectura: las notificaciones y noticias marcan su estado como leído automáticamente al consultarlas, incorporando además un botón superior de **"Marcar todas como leídas"**.
+* **Personalización y Ajustes de la App (Modo Claro / Oscuro):**
+  * Incorporación de un nuevo menú de **Ajustes** accesible mediante icono de engranaje en la cabecera institucional (`RayoHeader`).
+  * Implementación de un conmutador (*Switch*) para alternar de forma fluida entre el modo claro y el modo oscuro adaptado a las preferencias del usuario.
+* **Leyenda y Filtros Avanzados en el Calendario:**
+  * Nueva barra de leyenda explicativa al pie del calendario para identificar claramente los iconos de partidos en casa (Local), fuera (Visitante) y encuentros con horario pendiente de confirmación.
+  * Indicadores visuales específicos para distinguir los partidos con fecha y hora oficial confirmada frente a aquellos pendientes de designación.
+* **Traducciones y Enriquecimiento de la Plantilla:**
+  * Adaptación completa de las nacionalidades de los jugadores de la plantilla al castellano mediante los códigos ISO oficiales de países.
+  * Optimización de los modales flotantes inferiores (*ModalBottomSheet*) para consultar perfiles de futbolistas y detalles de partidos con animaciones fluidas y diseño minimalista.
+* **Scrapers y Automatización (GitHub Actions Avanzado):**
+  * Optimización de los flujos en Python con mayor frecuencia de ejecución los fines de semana de jornada para refrescar marcadores, clasificaciones y noticias en tiempo real.
+  * Robustecimiento del motor RSS para evitar bloqueos de Cloudflare y extraer con éxito las imágenes de portada de todas las fuentes de la grada y medios oficiales.
+
+---
+
 ## [0.2.0] - 2026-11-13
 
 ### 🚀 Nuevas Funcionalidades y Mejoras Principales
