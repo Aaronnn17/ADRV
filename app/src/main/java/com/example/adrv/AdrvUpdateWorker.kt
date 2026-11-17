@@ -32,24 +32,51 @@ class AdrvUpdateWorker(
         val allowedSources = prefs.getStringSet("notify_sources", emptySet()) ?: emptySet()
 
         return try {
-            // --- 1. COMPROBAR NOTICIAS ---
+            // --- 1. COMPROBAR TODAS LAS NOTICIAS NUEVAS ---
             if (notifyNews) {
                 val newsData = RayoRepository.fetchNewsData()
-                val latestNews = newsData?.news?.firstOrNull()
-                val lastNewsTitle = prefs.getString("last_news_title", "")
+                val recentNews = newsData?.news?.take(10) ?: emptyList()
 
-                if (latestNews != null && latestNews.title != lastNewsTitle) {
-                    val fuenteNoticia = latestNews.fuente
-                    if (allowedSources.isEmpty() || allowedSources.contains(fuenteNoticia)) {
-                        showNotification(
-                            id = 1924,
-                            title = "Nueva noticia: $fuenteNoticia",
-                            message = latestNews.title,
-                            targetType = "news",
-                            targetData = latestNews.link
-                        )
+                // Recuperamos el historial de IDs de noticias que YA hemos notificado
+                val notifiedNewsIds = prefs.getStringSet("notified_news_ids", null)?.toMutableSet()
+
+                if (notifiedNewsIds == null) {
+                    // Primera vez que se ejecuta con este sistema: guardamos las actuales sin spamear 10 notificaciones de golpe
+                    val initialIds = recentNews.map { it.id }.toSet()
+                    prefs.edit().putStringSet("notified_news_ids", initialIds).apply()
+                } else {
+                    // Recorremos de la más antigua a la más reciente entre las nuevas para que salten en orden
+                    recentNews.reversed().forEach { newsItem ->
+                        if (!notifiedNewsIds.contains(newsItem.id)) {
+                            val fuenteNoticia = if (newsItem.fuente.equals("Oficial", ignoreCase = true)) {
+                                "Rayo Vallecano"
+                            } else {
+                                newsItem.fuente
+                            }
+
+                            // Comprobamos si la fuente está permitida en los ajustes del usuario
+                            val isAllowed = allowedSources.isEmpty() || allowedSources.any {
+                                it.equals(fuenteNoticia, ignoreCase = true) || it.equals(newsItem.fuente, ignoreCase = true)
+                            }
+
+                            if (isAllowed) {
+                                showNotification(
+                                    id = newsItem.id.hashCode(), // ID único para que NO se pisen entre sí
+                                    title = "🗞️ Nueva noticia: $fuenteNoticia",
+                                    message = newsItem.title,
+                                    targetType = "news",
+                                    targetData = newsItem.link
+                                )
+                            }
+
+                            // Marcamos este ID como ya procesado
+                            notifiedNewsIds.add(newsItem.id)
+                        }
                     }
-                    prefs.edit().putString("last_news_title", latestNews.title).apply()
+
+                    // Guardamos la lista actualizada (limitada a los últimos 100 IDs para que no crezca infinito)
+                    val trimmedIds = notifiedNewsIds.toList().takeLast(100).toSet()
+                    prefs.edit().putStringSet("notified_news_ids", trimmedIds).apply()
                 }
             }
 
