@@ -1,7 +1,18 @@
 {
-    "updatedAt": "2026-11-18T16:00:45.455171",
+    "updatedAt": "2026-11-18T16:30:47.515958",
     "totalNews": 60,
     "news": [
+        {
+            "id": "d39c55c9-639b-476e-bdd5-c9d152a1565e",
+            "title": "Entradas para el Rayo Vallecano - Valencia CF",
+            "link": "https://www.rayovallecano.es/noticias/entradas-para-el-rayo-vallecano-valencia-cf-2026",
+            "published": "Wed, 18 Nov 2026 15:21:22 +0000",
+            "summary": "",
+            "content": "<p style=\"text-align: justify;\">Información de las entradas para el <strong>Rayo Vallecano - Valencia CF</strong> de la jornada 13 de LALIGA EA SPORTS que se disputará el sábado 21 de noviembre en el Estadio de Vallecas.</p>",
+            "categories": [],
+            "image": "https://statics-maker.llt-services.com/ray/images/2025/08/29/original/d9d97791-8413-44ae-9474-a8fc7fee9392-110.jpg",
+            "fuente": "Oficial"
+        },
         {
             "id": "https://unionrayo.es/entradas-rayo-vallecano-valencia-vallecas-laliga/",
             "title": "El Rayo pone a la venta las entradas para recibir al Valencia en Vallecas",
@@ -666,19 +677,6 @@
                 "afición"
             ],
             "image": "https://statics-maker.llt-services.com/ray/images/2025/08/29/original/d9d97791-8413-44ae-9474-a8fc7fee9392-110.jpg",
-            "fuente": "Oficial"
-        },
-        {
-            "id": "8fbe1ad9-ecb0-4164-bd1d-54157f85dfc8",
-            "title": "El RC Recreativo de Huelva rival en Copa del Rey",
-            "link": "https://www.rayovallecano.es/noticias/el-rc-recreativo-de-huelva-rival-en-copa-del-rey",
-            "published": "Mon, 05 Oct 2026 12:21:38 +0000",
-            "summary": "Primera eliminatoria de Copa del Rey",
-            "content": "<p style=\"text-align: justify;\"><span style=\"font-size: 12pt;\">El <strong>RC Recreativo de Huelva</strong> será nuestro rival en la primera eliminatoria de la Copa del Rey. Eliminatoria a partido único en el Nuevo Colombino los días 27,28 o 29 de octubre.</span></p>\n<p> </p>\n<p> </p>",
-            "categories": [
-                "primer equipo"
-            ],
-            "image": "https://statics-maker.llt-services.com/ray/images/2026/10/05/original/8ad43fbe-b503-4205-82fe-775880e08f33-826.jpg",
             "fuente": "Oficial"
         },
         {
