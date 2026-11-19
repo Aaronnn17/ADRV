@@ -1,7 +1,21 @@
 {
-    "updatedAt": "2026-11-19T13:30:56.275642",
+    "updatedAt": "2026-11-19T14:00:48.441116",
     "totalNews": 60,
     "news": [
+        {
+            "id": "1e26e8a9-36ef-4b5f-9808-9f3b6e1716d5",
+            "title": "Beñat San José: Esperamos al mejor Valencia",
+            "link": "https://www.rayovallecano.es/noticias/benat-san-jose-esperamos-al-mejor-valencia",
+            "published": "Thu, 19 Nov 2026 13:25:28 +0000",
+            "summary": "Rueda de prensa de Beñat San José analizando el partido del sábado entre el Rayo Vallecano y el Valencia CF.",
+            "content": "<p style=\"text-align: justify;\">Valoraciones de Beñat San José analizando el Rayo Vallecano - Valencia CF del próximo sábado en el Estadio de Vallecas.</p>",
+            "categories": [
+                "primer equipo",
+                "Ruedas de prensa"
+            ],
+            "image": "https://statics-maker.llt-services.com/ray/images/2026/11/19/original/656766c5-adc1-44c2-8f3c-da2894ebb547-855.jpg",
+            "fuente": "Oficial"
+        },
         {
             "id": "https://unionrayo.es/?p=404035",
             "title": "El Rayo ya conoce a sus posibles rivales en la segunda ronda de la Copa del Rey",
@@ -664,19 +678,6 @@
                 "primer equipo"
             ],
             "image": "https://statics-maker.llt-services.com/ray/images/2026/10/07/original/f6068055-7f04-450e-bc2b-d60b75e96417-980.jpg",
-            "fuente": "Oficial"
-        },
-        {
-            "id": "d510c091-0701-47af-9010-cd7312f6be6f",
-            "title": "Entradas para el Rayo Vallecano - Athletic Club",
-            "link": "https://www.rayovallecano.es/noticias/entradas-para-el-rayo-vallecano-athletic-club-2026",
-            "published": "Mon, 05 Oct 2026 19:49:08 +0000",
-            "summary": "Estadio de Vallecas. Sábado 10 de octubre a las 14:00 horas.",
-            "content": "<p style=\"text-align: justify;\">Información de las entradas para el partido de la jornada 8 de LALIGA EA SPORTS que disputarán el <strong>Rayo Vallecano</strong> y el <strong>Athletic Club</strong> el sábado 10 de octubre a las 14:00 horas en el Estadio de Vallecas.</p>",
-            "categories": [
-                "afición"
-            ],
-            "image": "https://statics-maker.llt-services.com/ray/images/2025/08/29/original/d9d97791-8413-44ae-9474-a8fc7fee9392-110.jpg",
             "fuente": "Oficial"
         },
         {
