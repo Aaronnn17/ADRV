@@ -94,14 +94,14 @@
             "teamName": "Athletic Club",
             "shortName": "Athletic",
             "crest": "https://crests.football-data.org/77.png",
-            "playedGames": 11,
+            "playedGames": 12,
             "won": 4,
             "draw": 4,
-            "lost": 3,
+            "lost": 4,
             "points": 16,
             "goalsFor": 15,
-            "goalsAgainst": 11,
-            "goalDifference": 4
+            "goalsAgainst": 12,
+            "goalDifference": 3
         },
         {
             "position": 8,
@@ -133,6 +133,20 @@
         },
         {
             "position": 10,
+            "teamName": "RCD Espanyol de Barcelona",
+            "shortName": "Espanyol",
+            "crest": "https://crests.football-data.org/80.png",
+            "playedGames": 13,
+            "won": 4,
+            "draw": 3,
+            "lost": 6,
+            "points": 15,
+            "goalsFor": 14,
+            "goalsAgainst": 14,
+            "goalDifference": 0
+        },
+        {
+            "position": 11,
             "teamName": "Real Racing Club de Santander",
             "shortName": "Santander",
             "crest": "https://crests.football-data.org/5335.png",
@@ -146,7 +160,7 @@
             "goalDifference": -13
         },
         {
-            "position": 11,
+            "position": 12,
             "teamName": "RC Celta de Vigo",
             "shortName": "Celta",
             "crest": "https://crests.football-data.org/558.png",
@@ -160,7 +174,7 @@
             "goalDifference": 0
         },
         {
-            "position": 12,
+            "position": 13,
             "teamName": "Deportivo Alavés",
             "shortName": "Alavés",
             "crest": "https://crests.football-data.org/263.png",
@@ -172,20 +186,6 @@
             "goalsFor": 15,
             "goalsAgainst": 17,
             "goalDifference": -2
-        },
-        {
-            "position": 13,
-            "teamName": "RCD Espanyol de Barcelona",
-            "shortName": "Espanyol",
-            "crest": "https://crests.football-data.org/80.png",
-            "playedGames": 12,
-            "won": 3,
-            "draw": 3,
-            "lost": 6,
-            "points": 12,
-            "goalsFor": 13,
-            "goalsAgainst": 14,
-            "goalDifference": -1
         },
         {
             "position": 14,
