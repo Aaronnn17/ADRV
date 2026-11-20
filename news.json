@@ -1,7 +1,21 @@
 {
-    "updatedAt": "2026-11-20T19:35:18.885227",
+    "updatedAt": "2026-11-20T20:00:42.273022",
     "totalNews": 60,
     "news": [
+        {
+            "id": "ee0ff08a-46eb-4941-9182-c36e8f78c5ad",
+            "title": "Comunicado oficial",
+            "link": "https://www.rayovallecano.es/noticias/comunicado-oficial-20-noviembre-2026",
+            "published": "Fri, 20 Nov 2026 19:11:03 +0000",
+            "summary": "",
+            "content": "<p style=\"text-align: justify;\">En el marco del compromiso con las reuniones con representantes de la afición, el Rayo Vallecano de Madrid, S.A.D. informa de que está trabajando para avanzar en los asuntos tratados.</p>\n<p style=\"text-align: justify;\">Entre las actuaciones previstas figura la elaboración de un nuevo reglamento para la inscripción de peñas en el Club. El Club también está desarrollando una plataforma para gestionar las devoluciones a los abonados que no pudieron asistir a los partidos disputados esta temporada en el Estadio Ontime Butarque.</p>\n<p style=\"text-align: justify;\">Confiamos en poder poner en marcha la plataforma lo antes posible, con el firme objetivo de efectuar los abonos a finales de 2026.</p>",
+            "categories": [
+                "club",
+                "afición"
+            ],
+            "image": "https://statics-maker.llt-services.com/ray/images/2023/06/09/optimized/3c0ea6c4-1260-4d16-9fc4-06053d190d83-404.jpg",
+            "fuente": "Oficial"
+        },
         {
             "id": "https://unionrayo.es/posibles-rivales-rayo-vallecano-segunda-ronda-copa-rey/",
             "title": "Diecisiete posibles rivales para el Rayo en la segunda ronda de la Copa del Rey",
@@ -662,19 +676,6 @@
                 "Ruedas de prensa"
             ],
             "image": "https://statics-maker.llt-services.com/ray/images/2026/10/08/original/03332c20-c4be-4394-8a34-fba56926c9fc-611.jpg",
-            "fuente": "Oficial"
-        },
-        {
-            "id": "f7118058-434f-4d5c-9888-7d5dd2b920ed",
-            "title": "Horario de la eliminatoria de Copa ante el Recreativo de Huelva",
-            "link": "https://www.rayovallecano.es/noticias/horario-de-la-eliminatoria-de-copa-ante-el-recreativo-de-huelva",
-            "published": "Wed, 07 Oct 2026 13:00:13 +0000",
-            "summary": "Martes 27 de octubre de 2026 a las 21:00 horas.",
-            "content": "<p style=\"text-align: justify;\">La RFEF ha dado a conocer la fecha y la hora en la que se disputará la primera eliminatoria de Copa del Rey.</p>\n<p style=\"text-align: justify;\">El RC Recreativo de Huelva - Rayo Vallecano se disputará el martes 27 de octubre de 2026 a las 21:00 horas en el Nuevo Colombino.</p>",
-            "categories": [
-                "primer equipo"
-            ],
-            "image": "https://statics-maker.llt-services.com/ray/images/2026/10/07/original/f6068055-7f04-450e-bc2b-d60b75e96417-980.jpg",
             "fuente": "Oficial"
         },
         {
