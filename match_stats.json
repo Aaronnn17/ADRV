@@ -45,6 +45,13 @@
     "racha_ultimos_partidos": {
         "local": [
             {
+                "fecha": "21/11/26",
+                "local": "SEV",
+                "resultado": "0 - 0",
+                "visitante": "BET",
+                "estado": "E"
+            },
+            {
                 "fecha": "8/11/26",
                 "local": "ELC",
                 "resultado": "0 - 2",
@@ -71,13 +78,6 @@
                 "resultado": "2 - 5",
                 "visitante": "BAR",
                 "estado": "D"
-            },
-            {
-                "fecha": "11/10/26",
-                "local": "BET",
-                "resultado": "5 - 2",
-                "visitante": "OSA",
-                "estado": "V"
             }
         ],
         "visitante": [
