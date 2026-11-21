@@ -185,7 +185,7 @@
             "homeTeam": "Rayo Vallecano de Madrid",
             "awayTeam": "Valencia CF",
             "homeScore": 0,
-            "awayScore": 0,
+            "awayScore": 1,
             "status": "UPCOMING",
             "statusApi": "IN_PLAY",
             "dateText": "2026-11-21T15:15:00Z",
