@@ -24,14 +24,14 @@
             "teamName": "Real Madrid CF",
             "shortName": "Real Madrid",
             "crest": "https://crests.football-data.org/86.png",
-            "playedGames": 12,
-            "won": 10,
+            "playedGames": 13,
+            "won": 11,
             "draw": 0,
             "lost": 2,
-            "points": 30,
-            "goalsFor": 31,
-            "goalsAgainst": 10,
-            "goalDifference": 21
+            "points": 33,
+            "goalsFor": 33,
+            "goalsAgainst": 11,
+            "goalDifference": 22
         },
         {
             "position": 3,
@@ -178,14 +178,14 @@
             "teamName": "RC Celta de Vigo",
             "shortName": "Celta",
             "crest": "https://crests.football-data.org/558.png",
-            "playedGames": 12,
+            "playedGames": 13,
             "won": 2,
             "draw": 7,
-            "lost": 3,
+            "lost": 4,
             "points": 13,
-            "goalsFor": 10,
-            "goalsAgainst": 10,
-            "goalDifference": 0
+            "goalsFor": 11,
+            "goalsAgainst": 12,
+            "goalDifference": -1
         },
         {
             "position": 14,
