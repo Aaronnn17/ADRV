@@ -122,14 +122,14 @@
         {
             "estadistica": "Posesión",
             "local": "51%",
-            "visitante": "51%"
+            "visitante": "52%"
         },
         {
             "estadistica": "Goles",
-            "media_local": "1.7",
-            "local": "20",
+            "media_local": "1.6",
+            "local": "21",
             "visitante": "15",
-            "media_visitante": "1.3"
+            "media_visitante": "1.2"
         },
         {
             "estadistica": "Goles de penalti",
@@ -140,29 +140,29 @@
         },
         {
             "estadistica": "Disparos",
-            "media_local": "12.8",
-            "local": "154",
-            "visitante": "122",
-            "media_visitante": "10.2"
+            "media_local": "12.2",
+            "local": "159",
+            "visitante": "135",
+            "media_visitante": "10.4"
         },
         {
             "estadistica": "Disparos a puerta",
-            "media_local": "6.2",
-            "local": "74",
-            "visitante": "54",
+            "media_local": "5.9",
+            "local": "77",
+            "visitante": "59",
             "media_visitante": "4.5"
         },
         {
             "estadistica": "Precisión de disparo",
             "local": "48%",
-            "visitante": "44%"
+            "visitante": "43%"
         },
         {
             "estadistica": "Pases totales",
-            "media_local": "521",
-            "local": "6,252",
-            "visitante": "4,779",
-            "media_visitante": "398.3"
+            "media_local": "511.9",
+            "local": "6,655",
+            "visitante": "5,310",
+            "media_visitante": "408.5"
         },
         {
             "estadistica": "Precisión en los pases",
@@ -171,29 +171,29 @@
         },
         {
             "estadistica": "Córners",
-            "media_local": "5.4",
-            "local": "65",
-            "visitante": "59",
-            "media_visitante": "4.9"
+            "media_local": "5.2",
+            "local": "67",
+            "visitante": "67",
+            "media_visitante": "5.2"
         },
         {
             "estadistica": "Faltas",
-            "media_local": "11.4",
-            "local": "137",
-            "visitante": "131",
-            "media_visitante": "10.9"
+            "media_local": "12.2",
+            "local": "158",
+            "visitante": "146",
+            "media_visitante": "11.2"
         },
         {
             "estadistica": "Fuera de juego",
             "media_local": "1.3",
-            "local": "16",
-            "visitante": "19",
+            "local": "17",
+            "visitante": "21",
             "media_visitante": "1.6"
         },
         {
             "estadistica": "Tarjetas amarillas",
-            "local": "18",
-            "visitante": "26"
+            "local": "22",
+            "visitante": "28"
         },
         {
             "estadistica": "Tarjetas rojas",
