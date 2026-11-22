@@ -38,14 +38,14 @@
             "teamName": "Club Atlético de Madrid",
             "shortName": "Atleti",
             "crest": "https://crests.football-data.org/78.png",
-            "playedGames": 12,
-            "won": 9,
+            "playedGames": 13,
+            "won": 10,
             "draw": 1,
             "lost": 2,
-            "points": 28,
-            "goalsFor": 23,
+            "points": 31,
+            "goalsFor": 26,
             "goalsAgainst": 10,
-            "goalDifference": 13
+            "goalDifference": 16
         },
         {
             "position": 4,
@@ -217,20 +217,6 @@
         },
         {
             "position": 16,
-            "teamName": "Getafe CF",
-            "shortName": "Getafe",
-            "crest": "https://crests.football-data.org/82.png",
-            "playedGames": 12,
-            "won": 3,
-            "draw": 3,
-            "lost": 6,
-            "points": 12,
-            "goalsFor": 8,
-            "goalsAgainst": 18,
-            "goalDifference": -10
-        },
-        {
-            "position": 17,
             "teamName": "Valencia CF",
             "shortName": "Valencia",
             "crest": "https://crests.football-data.org/95.png",
@@ -242,6 +228,20 @@
             "goalsFor": 9,
             "goalsAgainst": 20,
             "goalDifference": -11
+        },
+        {
+            "position": 17,
+            "teamName": "Getafe CF",
+            "shortName": "Getafe",
+            "crest": "https://crests.football-data.org/82.png",
+            "playedGames": 13,
+            "won": 3,
+            "draw": 3,
+            "lost": 7,
+            "points": 12,
+            "goalsFor": 8,
+            "goalsAgainst": 21,
+            "goalDifference": -13
         },
         {
             "position": 18,
