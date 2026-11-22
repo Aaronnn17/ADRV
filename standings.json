@@ -10,14 +10,14 @@
             "teamName": "FC Barcelona",
             "shortName": "Barça",
             "crest": "https://crests.football-data.org/81.png",
-            "playedGames": 12,
-            "won": 11,
+            "playedGames": 13,
+            "won": 12,
             "draw": 0,
             "lost": 1,
-            "points": 33,
-            "goalsFor": 48,
-            "goalsAgainst": 13,
-            "goalDifference": 35
+            "points": 36,
+            "goalsFor": 51,
+            "goalsAgainst": 15,
+            "goalDifference": 36
         },
         {
             "position": 2,
@@ -122,14 +122,14 @@
             "teamName": "Villarreal CF",
             "shortName": "Villarreal",
             "crest": "https://crests.football-data.org/94.png",
-            "playedGames": 12,
+            "playedGames": 13,
             "won": 4,
             "draw": 3,
-            "lost": 5,
+            "lost": 6,
             "points": 15,
-            "goalsFor": 17,
-            "goalsAgainst": 15,
-            "goalDifference": 2
+            "goalsFor": 19,
+            "goalsAgainst": 18,
+            "goalDifference": 1
         },
         {
             "position": 10,
