@@ -52,6 +52,7 @@ dependencies {
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
     implementation("com.google.mlkit:text-recognition:16.0.0")
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)

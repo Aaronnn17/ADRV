@@ -19,6 +19,8 @@ import androidx.work.WorkManager
 import com.example.adrv.ui.screens.MainScreen
 import com.example.adrv.ui.theme.ADRVTheme
 import java.util.concurrent.TimeUnit
+import com.example.adrv.ui.components.AppIntroContainer
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 val LocalThemeController = staticCompositionLocalOf<ThemeController> {
     error("No ThemeController provided")
@@ -44,6 +46,12 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            // Quita el splash nativo al instante para dar paso directo a nuestra animación Compose
+            splashScreenView.remove()
+        }
+
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -87,7 +95,9 @@ class MainActivity : ComponentActivity() {
 
             CompositionLocalProvider(LocalThemeController provides themeController) {
                 ADRVTheme(darkTheme = isDarkTheme) {
-                    MainScreen()
+                    AppIntroContainer {
+                        MainScreen()
+                    }
                 }
             }
         }
