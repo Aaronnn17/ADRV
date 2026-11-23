@@ -1,5 +1,11 @@
 package com.example.adrv.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,14 +24,20 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.adrv.R
+import kotlinx.coroutines.launch
 
 @Composable
 fun RayoHeader(
@@ -33,21 +45,52 @@ fun RayoHeader(
     onSettingsClick: () -> Unit = {},
     unreadCount: Int = 0
 ) {
+    val scope = rememberCoroutineScope()
+    val settingsRotation = remember { Animatable(0f) }
+    val bellRotation = remember { Animatable(0f) }
+
+    // Repica la campana cuando cambia el número de notificaciones sin leer
+    LaunchedEffect(unreadCount) {
+        if (unreadCount > 0) {
+            bellRotation.snapTo(-22f)
+            bellRotation.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(
+                    dampingRatio = 0.25f,
+                    stiffness = 450f
+                )
+            )
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // BOTÓN DE AJUSTES ALINEADO A LA IZQUIERDA
+        // BOTÓN DE AJUSTES CON GIRO ELÁSTICO
         IconButton(
-            onClick = onSettingsClick,
+            onClick = {
+                scope.launch {
+                    settingsRotation.animateTo(
+                        targetValue = settingsRotation.value + 90f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
+                }
+                onSettingsClick()
+            },
             modifier = Modifier.align(Alignment.CenterStart)
         ) {
             Icon(
                 imageVector = Icons.Default.Settings,
                 contentDescription = "Ajustes",
-                // Usamos onSurface en lugar de Color.White para que se adapte
-                tint = MaterialTheme.colorScheme.onSurface
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.graphicsLayer {
+                    rotationZ = settingsRotation.value
+                }
             )
         }
 
@@ -66,7 +109,6 @@ fun RayoHeader(
                 text = "RAYO VALLECANO",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                // Usamos onSurface en lugar de Color.White para que se adapte
                 color = MaterialTheme.colorScheme.onSurface,
                 letterSpacing = 1.5.sp
             )
@@ -85,25 +127,56 @@ fun RayoHeader(
             )
         }
 
-        // BOTÓN DE NOTIFICACIONES ALINEADO A LA DERECHA
+        // BOTÓN DE NOTIFICACIONES CON CAMPANA VIVA Y BADGE ELÁSTICO
         Box(
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
             BadgedBox(
                 badge = {
-                    if (unreadCount > 0) {
+                    AnimatedVisibility(
+                        visible = unreadCount > 0,
+                        enter = scaleIn(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
+                        ),
+                        exit = scaleOut()
+                    ) {
                         Badge(containerColor = MaterialTheme.colorScheme.error) {
-                            Text(text = unreadCount.toString(), color = Color.White, fontSize = 10.sp)
+                            OdometerText(
+                                text = unreadCount.toString(),
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
             ) {
-                IconButton(onClick = onNotificationClick) {
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            bellRotation.snapTo(-20f)
+                            bellRotation.animateTo(
+                                targetValue = 0f,
+                                animationSpec = spring(
+                                    dampingRatio = 0.25f,
+                                    stiffness = 450f
+                                )
+                            )
+                        }
+                        onNotificationClick()
+                    }
+                ) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Notificaciones",
-                        // Usamos onSurface en lugar de Color.White para que se adapte
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.graphicsLayer {
+                            rotationZ = bellRotation.value
+                            transformOrigin = TransformOrigin(0.5f, 0.15f)
+                        }
                     )
                 }
             }

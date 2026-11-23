@@ -9,6 +9,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URL
+import com.example.adrv.model.WeatherResponse
 
 object RayoRepository {
     // URL del Calendario
@@ -19,6 +20,9 @@ object RayoRepository {
     private const val GITHUB_SQUAD_URL = "https://raw.githubusercontent.com/Aaronnn17/ADRV/refs/heads/master/squad.json"
     // URL de las Noticias
     private const val GITHUB_NEWS_URL = "https://raw.githubusercontent.com/Aaronnn17/ADRV/refs/heads/master/news.json"
+    // URL del Tiempo
+
+    private const val GITHUB_WEATHER_URL = "https://raw.githubusercontent.com/Aaronnn17/ADRV/refs/heads/master/weather.json"
 
 
     suspend fun fetchRayoData(): RayoData? = withContext(Dispatchers.IO) {
@@ -66,6 +70,16 @@ object RayoRepository {
             val url = java.net.URL("https://raw.githubusercontent.com/Aaronnn17/ADRV/master/match_stats.json")
             val jsonString = url.readText()
             com.google.gson.Gson().fromJson(jsonString, com.example.adrv.model.MatchStatsResponse::class.java)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun fetchWeatherData(): WeatherResponse? = withContext(Dispatchers.IO) {
+        try {
+            val jsonString = URL(GITHUB_WEATHER_URL).readText()
+            Gson().fromJson(jsonString, WeatherResponse::class.java)
         } catch (e: Exception) {
             e.printStackTrace()
             null

@@ -1,24 +1,37 @@
 package com.example.adrv.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,6 +44,10 @@ import com.example.adrv.model.Enfrentamiento
 import com.example.adrv.model.EstadisticaTemporada
 import com.example.adrv.model.MatchStatsResponse
 import com.example.adrv.model.PartidoRacha
+import com.example.adrv.model.WeatherResponse
+import com.example.adrv.ui.components.MatchWeatherWidget
+import com.example.adrv.ui.components.OdometerText
+import com.example.adrv.ui.components.bounceClick
 import com.example.adrv.ui.theme.RayoRed
 import java.text.Normalizer
 import java.time.ZoneId
@@ -42,7 +59,8 @@ import java.util.Locale
 fun MatchStatsScreen(
     stats: MatchStatsResponse,
     matchInfo: ApiMatch,
-    allMatches: List<ApiMatch> = emptyList()
+    allMatches: List<ApiMatch> = emptyList(),
+    weatherData: WeatherResponse? = null
 ) {
     var isAnimStarted by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { isAnimStarted = true }
@@ -101,30 +119,56 @@ fun MatchStatsScreen(
             }
         }
 
+        // --- 1.5. PRONÓSTICO DEL TIEMPO EN EL ESTADIO ---
+        if (weatherData != null && weatherData.disponible) {
+            item {
+                AnimatedVisibility(
+                    visible = isAnimStarted,
+                    enter = fadeIn(tween(450)) + slideInVertically(tween(450)) { it / 4 }
+                ) {
+                    MatchWeatherWidget(weather = weatherData)
+                }
+            }
+        }
+
         // --- 2. CARA A CARA ---
         item {
             AnimatedVisibility(
                 visible = isAnimStarted,
                 enter = fadeIn(tween(500)) + slideInVertically(tween(500)) { it / 4 }
             ) {
-                StatsCardContainer(title = "Cara a cara") {
+                StatsCardContainer(
+                    title = "Cara a cara",
+                    icon = Icons.Default.SwapHoriz
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        AsyncImage(
-                            model = matchInfo.homeLogoUrl,
-                            contentDescription = matchInfo.homeTeam,
-                            modifier = Modifier.size(36.dp)
+                        StatMetricTile(
+                            value = stats.cara_a_cara.victorias_local,
+                            label = "Victorias",
+                            logoUrl = matchInfo.homeLogoUrl,
+                            accentColor = RayoRed,
+                            isAnimStarted = isAnimStarted,
+                            modifier = Modifier.weight(1f)
                         )
-                        StatCircleBox(stats.cara_a_cara.victorias_local, "Victorias", RayoRed)
-                        StatCircleBox(stats.cara_a_cara.empates, "Empates", MaterialTheme.colorScheme.onSurface)
-                        StatCircleBox(stats.cara_a_cara.victorias_visitante, "Victorias", MaterialTheme.colorScheme.primary)
-                        AsyncImage(
-                            model = matchInfo.awayLogoUrl,
-                            contentDescription = matchInfo.awayTeam,
-                            modifier = Modifier.size(36.dp)
+                        StatMetricTile(
+                            value = stats.cara_a_cara.empates,
+                            label = "Empates",
+                            logoUrl = null,
+                            accentColor = MaterialTheme.colorScheme.onSurface,
+                            isAnimStarted = isAnimStarted,
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatMetricTile(
+                            value = stats.cara_a_cara.victorias_visitante,
+                            label = "Victorias",
+                            logoUrl = matchInfo.awayLogoUrl,
+                            accentColor = MaterialTheme.colorScheme.onSurface,
+                            isAnimStarted = isAnimStarted,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -138,10 +182,13 @@ fun MatchStatsScreen(
                     visible = isAnimStarted,
                     enter = fadeIn(tween(550)) + slideInVertically(tween(550)) { it / 4 }
                 ) {
-                    StatsCardContainer(title = "Enfrentamientos recientes") {
+                    StatsCardContainer(
+                        title = "Enfrentamientos recientes",
+                        icon = Icons.Default.History
+                    ) {
                         Column(
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             stats.enfrentamientos_recientes.forEach { item ->
                                 RecentMatchRow(item, allMatches, matchInfo)
@@ -158,10 +205,13 @@ fun MatchStatsScreen(
                 visible = isAnimStarted,
                 enter = fadeIn(tween(600)) + slideInVertically(tween(600)) { it / 4 }
             ) {
-                StatsCardContainer(title = "Racha en los últimos partidos") {
+                StatsCardContainer(
+                    title = "Racha en los últimos partidos",
+                    icon = Icons.Default.Timeline
+                ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         TeamDetailedRachaSection(
                             logoUrl = matchInfo.homeLogoUrl,
@@ -171,7 +221,7 @@ fun MatchStatsScreen(
                             matchInfo = matchInfo
                         )
 
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
 
                         TeamDetailedRachaSection(
                             logoUrl = matchInfo.awayLogoUrl,
@@ -185,24 +235,27 @@ fun MatchStatsScreen(
             }
         }
 
-        // --- 5. ESTADÍSTICAS DE TEMPORADA ---
+        // --- 5. ESTADÍSTICAS DE TEMPORADA (Ahora también integrada en tarjeta) ---
         if (stats.estadisticas_temporada.isNotEmpty()) {
             item {
                 AnimatedVisibility(
                     visible = isAnimStarted,
                     enter = fadeIn(tween(700)) + slideInVertically(tween(700)) { it / 4 }
                 ) {
-                    Text(
-                        text = "Estadísticas de la temporada",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp, start = 4.dp)
-                    )
+                    StatsCardContainer(
+                        title = "Estadísticas de la temporada",
+                        icon = Icons.Default.BarChart
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            stats.estadisticas_temporada.forEach { stat ->
+                                StatBarAnimated(stat = stat, isAnimStarted = isAnimStarted)
+                            }
+                        }
+                    }
                 }
-            }
-            items(stats.estadisticas_temporada) { stat ->
-                StatBarAnimated(stat = stat, isAnimStarted = isAnimStarted)
             }
         }
     }
@@ -253,50 +306,147 @@ fun InfoRow(label: String, value: String) {
     }
 }
 
+// MISMO CONTENEDOR INTEGRADO QUE MatchWeatherWidget (borde 1.dp, ancho alineado, plegable)
 @Composable
-fun StatsCardContainer(title: String, content: @Composable () -> Unit) {
+fun StatsCardContainer(
+    title: String,
+    icon: ImageVector? = null,
+    initiallyExpanded: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(initiallyExpanded) }
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "statsChevron_$title"
+    )
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp)
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
         ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            content()
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Cabecera táctil limpia (mismo estilo que el widget del tiempo)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bounceClick { isExpanded = !isExpanded }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (icon != null) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = RayoRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+                    Text(
+                        text = title,
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.Default.ExpandMore,
+                    contentDescription = "Plegar o desplegar",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .graphicsLayer { rotationZ = chevronRotation }
+                )
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn(tween(200)) + expandVertically(),
+                exit = fadeOut(tween(150)) + shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                ) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+                    Spacer(modifier = Modifier.height(14.dp))
+                    content()
+                }
+            }
         }
     }
 }
 
+// CUADRADITOS INTEGRADOS PARA EL CARA A CARA (a juego con las métricas del tiempo)
 @Composable
-fun StatCircleBox(value: String, label: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(60.dp)
-                .clip(CircleShape)
-                .background(color.copy(alpha = 0.12f))
-        ) {
-            Text(
-                text = value,
-                fontSize = 24.sp,
-                color = color,
-                fontWeight = FontWeight.Black
+fun StatMetricTile(
+    value: String,
+    label: String,
+    logoUrl: String?,
+    accentColor: Color,
+    isAnimStarted: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.10f),
+                shape = RoundedCornerShape(14.dp)
             )
+            .padding(vertical = 12.dp, horizontal = 8.dp)
+    ) {
+        if (!logoUrl.isNullOrEmpty()) {
+            AsyncImage(
+                model = logoUrl,
+                contentDescription = label,
+                modifier = Modifier.size(24.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "=",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         Spacer(modifier = Modifier.height(6.dp))
+        OdometerText(
+            text = if (isAnimStarted) value else "0",
+            fontSize = 22.sp,
+            color = accentColor,
+            fontWeight = FontWeight.Black
+        )
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = label,
             fontSize = 11.sp,
@@ -313,16 +463,21 @@ fun RecentMatchRow(item: Enfrentamiento, allMatches: List<ApiMatch>, matchInfo: 
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(12.dp)
+            )
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = item.fecha,
-            fontSize = 12.sp,
+            fontSize = 11.5.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(80.dp)
+            modifier = Modifier.width(76.dp)
         )
 
         Row(
@@ -333,13 +488,13 @@ fun RecentMatchRow(item: Enfrentamiento, allMatches: List<ApiMatch>, matchInfo: 
             AsyncImage(
                 model = resolveLogoFromMatches(item.local, allMatches, matchInfo),
                 contentDescription = item.local,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(26.dp)
             )
 
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.padding(horizontal = 12.dp)
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.padding(horizontal = 10.dp)
             ) {
                 Text(
                     text = item.resultado,
@@ -353,7 +508,7 @@ fun RecentMatchRow(item: Enfrentamiento, allMatches: List<ApiMatch>, matchInfo: 
             AsyncImage(
                 model = resolveLogoFromMatches(item.visitante, allMatches, matchInfo),
                 contentDescription = item.visitante,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(26.dp)
             )
         }
 
@@ -363,7 +518,7 @@ fun RecentMatchRow(item: Enfrentamiento, allMatches: List<ApiMatch>, matchInfo: 
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             textAlign = TextAlign.End,
-            modifier = Modifier.width(50.dp)
+            modifier = Modifier.width(46.dp)
         )
     }
 }
@@ -385,14 +540,14 @@ fun TeamDetailedRachaSection(
                 AsyncImage(
                     model = logoUrl,
                     contentDescription = teamName,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
             Text(
                 text = teamName,
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
+                fontSize = 13.5.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -409,17 +564,22 @@ fun TeamDetailedRachaSection(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.25f))
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f))
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = partido.fecha,
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.width(65.dp)
+                            modifier = Modifier.width(64.dp)
                         )
 
                         Row(
@@ -510,15 +670,36 @@ fun StatBarAnimated(stat: EstadisticaTemporada, isAnimStarted: Boolean) {
         label = "BarAnimation"
     )
 
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = stat.local, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = RayoRed)
-            Text(text = stat.estadistica, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-            Text(text = stat.visitante, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+            OdometerText(
+                text = if (isAnimStarted) stat.local else "0",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.5.sp,
+                color = RayoRed
+            )
+            Text(
+                text = stat.estadistica,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            OdometerText(
+                text = if (isAnimStarted) stat.visitante else "0",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.5.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
         Spacer(modifier = Modifier.height(6.dp))
         Row(
@@ -570,7 +751,7 @@ fun resolveLogoFromMatches(
         "sev" -> "sevilla"
         "ala" -> "alaves"
         "esp" -> "espanyol"
-        "mal" -> "malaga"
+        "mga", "mlg" -> "malaga"
         "lev" -> "levante"
         "rec" -> "recreativo"
         else -> q

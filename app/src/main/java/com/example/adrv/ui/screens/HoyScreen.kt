@@ -88,10 +88,14 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.example.adrv.model.WeatherResponse
+import com.example.adrv.ui.components.MatchWeatherWidget
+import com.example.adrv.ui.components.SettingsBottomSheet
 
 @Composable
 fun HoyScreen() {
     var rayoData by remember { mutableStateOf<RayoData?>(null) }
+    var weatherData by remember { mutableStateOf<WeatherResponse?>(null) }
     var newsData by remember { mutableStateOf<List<com.example.adrv.model.News>?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
@@ -152,6 +156,7 @@ fun HoyScreen() {
             rayoData = RayoRepository.fetchRayoData()
             newsData = RayoRepository.fetchNewsData()?.news
             matchStatsData = RayoRepository.fetchMatchStats()
+            weatherData = RayoRepository.fetchWeatherData()
             novedadesHistorial = sharedPrefs.getStringSet("history_alerts", emptySet())?.toList() ?: emptyList()
             isRefreshing = false
         }
@@ -163,6 +168,7 @@ fun HoyScreen() {
             rayoData = RayoRepository.fetchRayoData()
             newsData = RayoRepository.fetchNewsData()?.news
             matchStatsData = RayoRepository.fetchMatchStats()
+            weatherData = RayoRepository.fetchWeatherData()
             novedadesHistorial = sharedPrefs.getStringSet("history_alerts", emptySet())?.toList() ?: emptyList()
             isLoading = false
         }
@@ -304,6 +310,13 @@ fun HoyScreen() {
                         } else if (nextMatch != null) {
                             NextMatchCard(match = nextMatch, onClick = { showMatchStatsSheet = true })
 
+                            weatherData?.let { weather ->
+                                if (weather.disponible) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    MatchWeatherWidget(weather = weather)
+                                }
+                            }
+
                             // Estado reactivo para los IDs leídos en HoyScreen
                             val prefsHistory = remember { context.getSharedPreferences("adrv_prefs", Context.MODE_PRIVATE) }
                             var readItemsState by remember {
@@ -433,128 +446,12 @@ fun HoyScreen() {
                         Spacer(modifier = Modifier.height(24.dp))
                     }
 
-                    // MENÚ DE AJUSTES MEJORADO CON PREFERENCIAS DE NOTIFICACIONES
+                    // MENÚ DE AJUSTES MODERNO E INTEGRADO
                     if (showSettingsDialog) {
-                        val context = androidx.compose.ui.platform.LocalContext.current
-                        val prefs = context.getSharedPreferences("adrv_prefs", android.content.Context.MODE_PRIVATE)
-
-                        // Estados locales para los Toggles
-                        var notificationsEnabled by remember { mutableStateOf(prefs.getBoolean("notifications_enabled", true)) }
-                        var notifyMatches by remember { mutableStateOf(prefs.getBoolean("notify_matches", true)) }
-                        var notifyNews by remember { mutableStateOf(prefs.getBoolean("notify_news", true)) }
-                        var allowedSources by remember { mutableStateOf(prefs.getStringSet("notify_sources", emptySet()) ?: emptySet()) }
-
-                        // Lista de fuentes habituales de tu JSON (Modifica estos nombres según las fuentes que realmente tengas)
-                        val availableSources = listOf("Unión Rayo", "Oficial", "Matagigantes", "Bukaneros")
-
-                        AlertDialog(
-                            onDismissRequest = { showSettingsDialog = false },
-                            title = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = "Ajustes", fontWeight = FontWeight.Bold)
-                                }
-                            },
-                            text = {
-                                // Usamos un scroll vertical por si el menú crece mucho
-                                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-
-                                    // 1. MODO OSCURO (Existente)
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column {
-                                            Text("Modo Oscuro", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
-                                            Text("Cambiar colores de la aplicación", fontSize = 12.sp, color = Color.Gray)
-                                        }
-                                        Switch(
-                                            checked = themeController.isDarkTheme,
-                                            onCheckedChange = { themeController.toggleTheme() },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary)
-                                        )
-                                    }
-
-                                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.Gray.copy(alpha = 0.2f))
-
-                                    // 2. NOTIFICACIONES GLOBALES
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("Recibir Notificaciones Push", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
-                                        Switch(
-                                            checked = notificationsEnabled,
-                                            onCheckedChange = {
-                                                notificationsEnabled = it
-                                                prefs.edit().putBoolean("notifications_enabled", it).apply()
-                                            },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary)
-                                        )
-                                    }
-
-                                    // 3. SUBCATEGORÍAS (Solo visibles si las notificaciones están activadas)
-                                    AnimatedVisibility(visible = notificationsEnabled) {
-                                        Column(modifier = Modifier.padding(start = 16.dp, top = 8.dp)) {
-
-                                            // Partidos
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Checkbox(
-                                                    checked = notifyMatches,
-                                                    onCheckedChange = {
-                                                        notifyMatches = it
-                                                        prefs.edit().putBoolean("notify_matches", it).apply()
-                                                    }
-                                                )
-                                                Text("Cambios de Horarios y Partidos", fontSize = 14.sp)
-                                            }
-
-                                            // Noticias
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Checkbox(
-                                                    checked = notifyNews,
-                                                    onCheckedChange = {
-                                                        notifyNews = it
-                                                        prefs.edit().putBoolean("notify_news", it).apply()
-                                                    }
-                                                )
-                                                Text("Nuevas Noticias", fontSize = 14.sp)
-                                            }
-
-                                            // Filtro de fuentes de noticias (Visible si Noticias está activado)
-                                            AnimatedVisibility(visible = notifyNews) {
-                                                Column(modifier = Modifier.padding(start = 16.dp, top = 4.dp)) {
-                                                    Text("Fuentes permitidas (Vacío = Todas):", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.Gray)
-                                                    availableSources.forEach { source ->
-                                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                                            Checkbox(
-                                                                checked = allowedSources.contains(source),
-                                                                onCheckedChange = { isChecked ->
-                                                                    val newSet = allowedSources.toMutableSet()
-                                                                    if (isChecked) newSet.add(source) else newSet.remove(source)
-                                                                    allowedSources = newSet
-                                                                    prefs.edit().putStringSet("notify_sources", newSet).apply()
-                                                                }
-                                                            )
-                                                            Text(source, fontSize = 13.sp)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            confirmButton = {
-                                TextButton(onClick = { showSettingsDialog = false }) {
-                                    Text("Cerrar", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                                }
-                            },
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(20.dp)
+                        SettingsBottomSheet(
+                            isDarkTheme = themeController.isDarkTheme,
+                            onToggleTheme = { themeController.toggleTheme() },
+                            onDismiss = { showSettingsDialog = false }
                         )
                     }
 
@@ -634,7 +531,8 @@ fun HoyScreen() {
             MatchStatsScreen(
                 stats = matchStatsData!!,
                 matchInfo = nextMatch,
-                allMatches = rayoData?.partidos ?: emptyList()
+                allMatches = rayoData?.partidos ?: emptyList(),
+                weatherData = weatherData
             )
         }
     }

@@ -34,6 +34,16 @@ import com.example.adrv.R
 import com.example.adrv.data.RayoRepository
 import com.example.adrv.model.News
 import com.example.adrv.ui.components.bounceClick
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import com.example.adrv.ui.components.OdometerText
+import com.example.adrv.ui.components.jellyClick
 
 @Composable
 fun NoticiasScreen() {
@@ -116,7 +126,7 @@ fun NoticiasScreen() {
                     ) {
                         item { Spacer(modifier = Modifier.height(4.dp)) }
 
-                        // Filtros horizontales
+                        // Filtros horizontales con efecto gelatina (Jelly Pad)
                         item {
                             Row(
                                 modifier = Modifier
@@ -126,18 +136,38 @@ fun NoticiasScreen() {
                             ) {
                                 sources.forEach { source ->
                                     val isSelected = (selectedSource == source)
-                                    FilterChip(
-                                        selected = isSelected,
-                                        onClick = { selectedSource = source },
-                                        label = { Text(text = source, fontWeight = FontWeight.Bold) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                            selectedLabelColor = Color.White,
-                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                        ),
-                                        shape = RoundedCornerShape(50.dp)
+                                    val bgColor by animateColorAsState(
+                                        targetValue = if (isSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                        },
+                                        label = "chipBg_$source"
                                     )
+                                    val textColor by animateColorAsState(
+                                        targetValue = if (isSelected) {
+                                            Color.White
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        label = "chipText_$source"
+                                    )
+
+                                    Surface(
+                                        color = bgColor,
+                                        shape = RoundedCornerShape(50.dp),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50.dp))
+                                            .jellyClick { selectedSource = source }
+                                    ) {
+                                        Text(
+                                            text = source,
+                                            color = textColor,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -145,13 +175,15 @@ fun NoticiasScreen() {
                         // Botón para marcar todas como leídas si hay alguna sin leer
                         if (unreadCount > 0) {
                             item {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    OdometerText(
+                                        text = unreadCount.toString(),
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                     Text(
-                                        text = "$unreadCount sin leer",
+                                        text = " sin leer",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontWeight = FontWeight.Medium
@@ -247,11 +279,23 @@ fun ModernNewsCard(item: News, isUnread: Boolean, onClick: () -> Unit) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isUnread) {
+                        val pulseTransition = rememberInfiniteTransition(label = "UnreadBolt")
+                        val boltScale by pulseTransition.animateFloat(
+                            initialValue = 0.9f,
+                            targetValue = 1.18f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(750),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "BoltScale"
+                        )
                         Icon(
                             imageVector = Icons.Default.FlashOn,
                             contentDescription = "No leída",
                             tint = Color.Red,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier
+                                .size(16.dp)
+                                .scale(boltScale)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                     }
