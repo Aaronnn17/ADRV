@@ -1,7 +1,8 @@
 import json
 import os
+import time
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import requests
 
@@ -227,12 +228,15 @@ def main():
         print(f"Partido a {days_ahead} días: fuera de ventana de 16 días.")
         return
 
-    # Llamada completa a Open-Meteo
+    # Pedimos solo el día del partido y el siguiente (mucho más rápido que 16 días)
+    next_day_str = (match_dt_madrid.date() + timedelta(days=1)).strftime("%Y-%m-%d")
+
     params = {
         "latitude": location["lat"],
         "longitude": location["lon"],
         "timezone": "Europe/Madrid",
-        "forecast_days": 16,
+        "start_date": match_date_str,
+        "end_date": next_day_str,
         "hourly": ",".join([
             "temperature_2m",
             "apparent_temperature",
@@ -266,30 +270,36 @@ def main():
         ]),
     }
 
-    try:
-        res = requests.get("https://api.open-meteo.com/v1/forecast", params=params, timeout=20)
-        res.raise_for_status()
-        wdata = res.json()
-    except Exception as e:
-        print(f"Error consultando Open-Meteo: {e}")
-        exit(1)
+    headers = {"User-Agent": "ADRV-App-Weather/1.0"}
+    wdata = None
 
-    hourly = wdata.get("hourly", {})
-    daily = wdata.get("daily", {})
+    for attempt in range(1, 4):
+        try:
+            res = requests.get(
+                "https://api.open-meteo.com/v1/forecast",
+                params=params,
+                headers=headers,
+                timeout=30,
+            )
+            res.raise_for_status()
+            wdata = res.json()
+            break
+        except Exception as e:
+            print(f"Intento {attempt}/3 fallido consultando Open-Meteo: {e}")
+            if attempt < 3:
+                time.sleep(3 * attempt)
 
-    times = hourly.get("time", [])
-    daily_times = daily.get("time", [])
-
-    if match_hour_str not in times:
-        output = {
-            "actualizado_en": now_madrid,
-            "disponible": False,
-            "motivo": "Hora del partido no disponible todavía en la previsión.",
-            "partido": base_match_info,
-        }
-        with open("weather.json", "w", encoding="utf-8") as f:
-            json.dump(output, f, indent=4, ensure_ascii=False)
-        print("Hora no encontrada en Open-Meteo.")
+    if not wdata:
+        print("No se pudo actualizar el tiempo en esta ejecución; se mantiene el estado anterior.")
+        if not os.path.exists("weather.json"):
+            fallback = {
+                "actualizado_en": now_madrid,
+                "disponible": False,
+                "motivo": "Servicio meteorológico temporalmente no disponible.",
+                "partido": base_match_info,
+            }
+            with open("weather.json", "w", encoding="utf-8") as f:
+                json.dump(fallback, f, indent=4, ensure_ascii=False)
         return
 
     idx = times.index(match_hour_str)
