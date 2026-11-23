@@ -4,6 +4,23 @@ Todas las actualizaciones, características, mejoras y correcciones notables de 
 
 ---
 
+## [0.4.0] - 2026-11-23
+
+### 🚀 Nuevas Funcionalidades y Mejoras Principales
+
+* **Nuevo Código de Barras con Formato Real (`AbonoData.kt`, `AbonoStorage.kt`, `AbonoAnalyzer.kt`, `BarcodeGenerator.kt` y `AbonoScreen.kt`):**
+  * Detección y guardado del formato real del código de barras escaneado (ITF, Code 39, Code 128, EAN-13, Codabar, etc.) en lugar de forzar siempre Code 128.
+  * Generación nítida sin difuminado (`FilterQuality.None`) con fondo blanco y margen (*quiet zone*) para facilitar la lectura en los tornos.
+* **Widget del Tiempo para el Día de Partido (`WeatherData.kt`, `RayoRepository.kt`, `MatchWeatherWidget.kt`, `HoyScreen.kt` y `MatchStatsScreen.kt`):**
+  * Integración del pronóstico meteorológico del partido desde `weather.json` mediante un widget compacto y desplegable con icono animado, evolución por franjas y probabilidad de lluvia.
+* **Nuevas Animaciones y Microinteracciones (`MotionUtils.kt`, `MainScreen.kt`, `MatchStatsScreen.kt`, `NoticiasScreen.kt` y `SettingsBottomSheet.kt`):**
+  * Efectos elásticos (`bounceClick`, `jellyClick`), barra inferior con píldora deslizante e iconos animados, números con efecto cuentakilómetros (`OdometerText`), campana animada (`AnimatedBellIcon`) y transiciones fluidas en filtros y paneles.
+
+### 🛠️ Retoques de la App
+* Ajustes visuales y de integración en el abono digital (efecto 3D al interactuar y eliminación de la marca "DIGI"), en los paneles desplegables y en la carga/actualización de datos en pantalla.
+  
+---
+
 ## [0.3.0] - 2026-11-16
 
 ### 🚀 Nuevas Funcionalidades y Mejoras Principales
