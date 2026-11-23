@@ -53,10 +53,13 @@ jobs:
       - name: Ejecutar script de Estadísticas del Siguiente Partido
         run: python update_match_stats.py
 
+      - name: Ejecutar script de Pronóstico del Tiempo
+        run: python update_weather.py
+
       - name: Commit y Push de los JSON
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add matches.json standings.json squad.json news.json match_stats.json
+          git add matches.json standings.json squad.json news.json match_stats.json weather.json
           git pull --rebase origin main || git pull --rebase origin master || true
           git diff --quiet && git diff --staged --quiet || (git commit -m "Actualización automática de datos ADRV" && git push)
