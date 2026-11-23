@@ -184,17 +184,17 @@
             "id": "match_564751",
             "homeTeam": "Rayo Vallecano de Madrid",
             "awayTeam": "Valencia CF",
-            "homeScore": null,
-            "awayScore": null,
-            "status": "UPCOMING",
-            "statusApi": "TIMED",
+            "homeScore": 0,
+            "awayScore": 1,
+            "status": "FINISHED",
+            "statusApi": "FINISHED",
             "dateText": "2026-11-21T15:15:00Z",
             "competition": "Primera Division",
             "round": "Jornada 13",
             "homeLogoUrl": "https://crests.football-data.org/87.png",
             "awayLogoUrl": "https://crests.football-data.org/95.png",
             "venue": "Estadio de Vallecas",
-            "referee": "Por designar"
+            "referee": "José Munuera Montero"
         },
         {
             "id": "match_564760",
