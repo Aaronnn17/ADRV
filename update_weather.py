@@ -301,6 +301,24 @@ def main():
             with open("weather.json", "w", encoding="utf-8") as f:
                 json.dump(fallback, f, indent=4, ensure_ascii=False)
         return
+    hourly = wdata.get("hourly", {})
+    daily = wdata.get("daily", {})
+
+    times = hourly.get("time", [])
+    daily_times = daily.get("time", [])
+
+    if match_hour_str not in times:
+        output = {
+            "actualizado_en": now_madrid,
+            "disponible": False,
+            "motivo": "Hora del partido no disponible todavía en la previsión.",
+            "partido": base_match_info,
+        }
+        with open("weather.json", "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=4, ensure_ascii=False)
+        print("Hora no encontrada en Open-Meteo.")
+        return
+        
 
     idx = times.index(match_hour_str)
 
