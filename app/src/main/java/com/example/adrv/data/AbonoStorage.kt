@@ -24,6 +24,7 @@ class AbonoStorage(private val context: Context) {
             codigoSocio = prefs.getString("codigoSocio", "") ?: "",
             temporada = prefs.getString("temporada", "") ?: "",
             barcodeNumber = prefs.getString("barcodeNumber", "") ?: "",
+            barcodeFormat = prefs.getString("barcodeFormat", "CODE_128") ?: "CODE_128",
             sponsorText = prefs.getString("sponsorText", "") ?: "",
             frontPhotoPath = prefs.getString("frontPhotoPath", null),
             backPhotoPath = prefs.getString("backPhotoPath", null)
@@ -43,6 +44,7 @@ class AbonoStorage(private val context: Context) {
             .putString("codigoSocio", data.codigoSocio)
             .putString("temporada", data.temporada)
             .putString("barcodeNumber", data.barcodeNumber)
+            .putString("barcodeFormat", data.barcodeFormat)
             .putString("sponsorText", data.sponsorText)
             .putString("frontPhotoPath", data.frontPhotoPath)
             .putString("backPhotoPath", data.backPhotoPath)

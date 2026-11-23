@@ -122,7 +122,7 @@ fun AbonoScreen(
         val path = storage.savePhotoFromUri(uri, isFront = true)
         if (path != null) {
             abonoData = abonoData.copy(frontPhotoPath = path)
-            Toast.makeText(context, "Escaneando datos del abono...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "¡Datos completados! Formato: ${abonoData.barcodeFormat}", Toast.LENGTH_LONG).show()
 
             BarcodeAnalyzer.analyzeImage(
                 context = context,
@@ -525,9 +525,10 @@ fun OfficialPhysicalCardPass2D(data: AbonoData, onClick: () -> Unit = {}) {
                 ) {
                     BarcodeImage(
                         text = data.barcodeNumber,
+                        format = data.barcodeFormat,
                         modifier = Modifier
-                            .fillMaxWidth(0.9f)
-                            .height(64.dp)
+                            .fillMaxWidth(0.92f)
+                            .height(80.dp)
                     )
                 }
             }
@@ -818,9 +819,10 @@ fun StaticPhysicalCardPass2D(data: AbonoData, onClick: () -> Unit = {}) {
             ) {
                 BarcodeImage(
                     text = data.barcodeNumber,
+                    format = data.barcodeFormat,
                     modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .height(64.dp)
+                        .fillMaxWidth(0.92f)
+                        .height(80.dp)
                 )
             }
         }

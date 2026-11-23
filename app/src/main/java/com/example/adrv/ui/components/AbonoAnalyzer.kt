@@ -27,15 +27,23 @@ object BarcodeAnalyzer {
             )
             val textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
-            // 1. Extraemos el código de barras
+            // 1. Extraemos el código de barras Y SU FORMATO REAL
             barcodeScanner.process(image)
                 .addOnSuccessListener { barcodes ->
-                    val barcodeValue = barcodes.firstOrNull()?.rawValue ?: currentData.barcodeNumber
+                    val firstBarcode = barcodes.firstOrNull()
+                    val barcodeValue = firstBarcode?.rawValue ?: currentData.barcodeNumber
+                    val detectedFormat = mapMlKitFormatToString(firstBarcode?.format) ?: currentData.barcodeFormat
 
                     // 2. Extraemos el texto
                     textRecognizer.process(image)
                         .addOnSuccessListener { visionText ->
-                            val newData = parseAbonoText(visionText.text, currentData.copy(barcodeNumber = barcodeValue))
+                            val newData = parseAbonoText(
+                                visionText.text,
+                                currentData.copy(
+                                    barcodeNumber = barcodeValue,
+                                    barcodeFormat = detectedFormat
+                                )
+                            )
                             onResult(newData)
                         }
                         .addOnFailureListener { e -> onFailure(e) }
@@ -108,5 +116,23 @@ object BarcodeAnalyzer {
         }
 
         return data
+    }
+
+    private fun mapMlKitFormatToString(mlKitFormat: Int?): String? {
+        return when (mlKitFormat) {
+            Barcode.FORMAT_CODE_128 -> "CODE_128"
+            Barcode.FORMAT_CODE_39 -> "CODE_39"
+            Barcode.FORMAT_CODE_93 -> "CODE_93"
+            Barcode.FORMAT_CODABAR -> "CODABAR"
+            Barcode.FORMAT_ITF -> "ITF"
+            Barcode.FORMAT_EAN_13 -> "EAN_13"
+            Barcode.FORMAT_EAN_8 -> "EAN_8"
+            Barcode.FORMAT_UPC_A -> "UPC_A"
+            Barcode.FORMAT_UPC_E -> "UPC_E"
+            Barcode.FORMAT_QR_CODE -> "QR_CODE"
+            Barcode.FORMAT_PDF417 -> "PDF_417"
+            Barcode.FORMAT_AZTEC -> "AZTEC"
+            else -> null
+        }
     }
 }

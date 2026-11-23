@@ -12,6 +12,7 @@ data class AbonoData(
     val codigoSocio: String = "",
     val temporada: String = "TEMPORADA 2026/2027",
     val barcodeNumber: String = "",
+    val barcodeFormat: String = "CODE_128",
     val sponsorText: String = "DIGI",
     val frontPhotoPath: String? = null,
     val backPhotoPath: String? = null
