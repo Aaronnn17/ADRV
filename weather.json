@@ -1,5 +1,5 @@
 {
-    "actualizado_en": "2026-11-27T00:01:11.123104+01:00",
+    "actualizado_en": "2026-11-27T00:31:06.055003+01:00",
     "disponible": true,
     "partido": {
         "id": "match_564760",
@@ -65,7 +65,7 @@
             "rachas_viento_kmh": 21.6,
             "direccion_viento_grados": 41,
             "direccion_viento": "NE",
-            "indice_uv": 2.5,
+            "indice_uv": 2.6,
             "visibilidad_km": 38.8,
             "es_dia": true,
             "codigo_wmo": 3,
@@ -131,7 +131,7 @@
             "rachas_viento_kmh": 21.2,
             "direccion_viento_grados": 47,
             "direccion_viento": "NE",
-            "indice_uv": 2.9,
+            "indice_uv": 2.8,
             "visibilidad_km": 41.5,
             "es_dia": true,
             "codigo_wmo": 3,
