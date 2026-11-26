@@ -1,7 +1,21 @@
 {
-    "updatedAt": "2026-11-26T13:00:46.261432",
+    "updatedAt": "2026-11-26T13:30:46.282185",
     "totalNews": 60,
     "news": [
+        {
+            "id": "979232af-864a-4709-b50c-cdb4b824395c",
+            "title": "Beñat San José: Es un partido muy importante para nosotros",
+            "link": "https://www.rayovallecano.es/noticias/benat-san-jose-es-un-partido-muy-importante-para-nosotros-realbetis",
+            "published": "Thu, 26 Nov 2026 13:06:13 +0000",
+            "summary": "",
+            "content": "<p style=\"text-align: justify;\"><span style=\"font-size: 12pt;\">Rueda de prensa de Beñat San José analizando el partido del próximo sábado entre el Real Betis Balompié y el Rayo Vallecano.</span></p>",
+            "categories": [
+                "primer equipo",
+                "Ruedas de prensa"
+            ],
+            "image": "https://statics-maker.llt-services.com/ray/images/2026/11/26/original/a176b739-46b8-4ede-8386-bf46a18ce228-606.jpg",
+            "fuente": "Oficial"
+        },
         {
             "id": "https://unionrayo.es/?p=404076",
             "title": "El Rayo Vallecano tienen su propia Menina en Villa de Vallecas",
@@ -640,19 +654,6 @@
             ],
             "image": "",
             "fuente": "Matagigantes"
-        },
-        {
-            "id": "dac7648f-f9a7-43e1-bdb0-902cfd5e1c26",
-            "title": "Beñat San José: Tenemos que enfocarnos en hacer el mejor partido posible ante el Getafe, que es un equipo completísimo",
-            "link": "https://www.rayovallecano.es/noticias/benat-san-jose-tenemos-que-enfocarnos-en-hacer-el-mejor-partido-posible-ante-el-getafe-que-es-un-equipo-completisimo",
-            "published": "Sat, 17 Oct 2026 14:05:02 +0000",
-            "summary": "Rueda de prensa de Beñat San José",
-            "content": "<p style=\"text-align: justify;\"><span style=\"font-size: 12pt;\">Valoraciones de Beñat San José analizando el partido del próximo lunes entre el Getafe CF y el Rayo Vallecano, correspondiente a la jornada 9 de LALIGA EA SPORTS.</span></p>",
-            "categories": [
-                "Ruedas de prensa"
-            ],
-            "image": "https://statics-maker.llt-services.com/ray/images/2026/10/17/original/b679c7da-9663-41c5-8973-e6a0e31dcfa1-481.jpg",
-            "fuente": "Oficial"
         },
         {
             "id": "https://bukaneros.org/?p=22387",
