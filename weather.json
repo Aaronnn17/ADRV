@@ -1,5 +1,5 @@
 {
-    "actualizado_en": "2026-11-27T06:31:12.690747+01:00",
+    "actualizado_en": "2026-11-27T07:01:15.011758+01:00",
     "disponible": true,
     "partido": {
         "id": "match_564760",
@@ -36,9 +36,9 @@
     },
     "resumen_dia": {
         "temp_max": 18.7,
-        "temp_min": 7.9,
+        "temp_min": 8.3,
         "sensacion_max": 17.1,
-        "sensacion_min": 6.3,
+        "sensacion_min": 6.8,
         "prob_lluvia_max": 0,
         "precipitacion_total_mm": 0.0,
         "viento_max_kmh": 7.9,
